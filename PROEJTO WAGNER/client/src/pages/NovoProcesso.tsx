@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useLocation } from 'wouter';
 import { toast } from 'sonner';
 import { useProcessos } from '@/contexts/SinistrosContext';
@@ -99,6 +99,7 @@ export default function NovoProcesso() {
   const [step, setStep] = useState(1);
   const [showAssinaturaDialog, setShowAssinaturaDialog] = useState(false);
   const [assinatura, setAssinatura] = useState('');
+  const pendingProcesso = useRef<Omit<import('@/lib/data').Processo, 'id' | 'historico'> | null>(null);
 
   // ---- Aba 1: Abertura ----
   const [numero, setNumero] = useState('');
@@ -267,69 +268,22 @@ export default function NovoProcesso() {
       vistoriaFinal,
     };
     
-    const novoProcesso = addProcesso(processo);
+    pendingProcesso.current = processo;
     setShowAssinaturaDialog(true);
   };
 
-  const handleAssinatura = () => {
+  const handleAssinatura = async () => {
     if (!assinatura.trim()) {
       toast.error('Digite sua assinatura digital');
       return;
     }
-    
-    const processo = addProcesso({
-      numero, operador, segurado, seguradora, dataAbertura, status: 'Em andamento',
-      dataEncerramentoVistoriador: dataEncVistoria,
-      dataEncerramentoFinalizarCentral: dataEncFinalizar,
-      justificativaAtraso: temAtraso ? justificativaAtraso : '',
-      atendimentoVistoria,
-      tacografoColetado: tacografo,
-      motivoTacografoNaoColetado: tacografo === 'nao' ? motivoTacografo : '',
-      velocidadeRegistrada: velRegistrada,
-      velocidadePermitida: velPermitida,
-      discoVencido,
-      documentosFotosAnalisados: docsFotos,
-      custosAprovados,
-      historicoStatus,
-      salvadosLancados,
-      vistoriadorEncerrado,
-      naoConformidade,
-      naoConformidadeDescricao: naoConformidade ? naoConformidadeDesc : '',
-      checklistEspecial,
-      ataVistoriaConferida: ataConferida,
-      planilhaPrejuizoConferida: planilhaConferida,
-      planilhaPrejuizoJustificativa: !planilhaConferida ? planilhaJustificativa : '',
-      mercadoriasSemInfo,
-      limpezaPistaSemTratativas: limpezaPista,
-      periciaSindicante: pericia,
-      alteracaoReserva,
-      vistoriaLonaAssoalho: vistoriaLona,
-      prejuizoApurado,
-      motivoPrejuizoNaoApurado: !prejuizoApurado ? motivoPrejuizo : '',
-      totalEmbarcado, totalRecebido, totalRecusado, salvadosValor, faltaSaque,
-      modeloFinalizarCentral: modelo,
-      causaEvento: causa,
-      declaracaoMotorista: declaracaoMotoristaAba2,
-      boAcidente: bo,
-      localEvento: localEventoAba2,
-      discoTacografo,
-      parecerVelocidade: parecer,
-      acionamentoComunicado: acionamento,
-      realizadoPor,
-      horarioAcionamento: horario,
-      atendimentoInLoco,
-      situacaoVeiculo,
-      condicoesMercadoria: condicoesMerc,
-      destinacaoMercadoria: destinacaoMerc,
-      descricaoAtendimento: descricaoAtend,
-      observacaoAtendimento: obsAtend,
-      documentosPendentes: docsPendentes,
-      vistoriaFinal,
-    });
+    if (!pendingProcesso.current) return;
+
+    const novoProcesso = await addProcesso(pendingProcesso.current);
 
     // Gerar PDF com assinatura
-    generateProcessoReport(processo, assinatura);
-    
+    generateProcessoReport(novoProcesso, assinatura);
+
     toast.success('Processo criado e relatório gerado com sucesso!');
     setShowAssinaturaDialog(false);
     navigate('/processos');

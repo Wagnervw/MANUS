@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, FileText, Search, ClipboardCheck, Calculator, Flag, Phone, CheckCircle2, XCircle, MinusCircle, FileDown, Copy, AlertCircle, Clock } from 'lucide-react';
+import { ArrowLeft, FileText, Search, ClipboardCheck, Calculator, Flag, Phone, CircleCheck as CheckCircle2, Circle as XCircle, CircleMinus as MinusCircle, FileDown, Copy, CircleAlert as AlertCircle, Clock } from 'lucide-react';
 
 function InfoRow({ label, value, highlight }: { label: string; value: string | number | boolean | undefined; highlight?: boolean }) {
   const display = typeof value === 'boolean' ? (value ? 'Sim' : 'Não') : (value || '—');
@@ -65,12 +65,12 @@ export default function DetalhesProcesso() {
     toast.success('Relatório PDF gerado com sucesso!');
   };
 
-  const handleDuplicar = () => {
+  const handleDuplicar = async () => {
     if (!novoNumero.trim()) {
       toast.error('Digite o novo número do processo');
       return;
     }
-    const duplicado = duplicarProcesso(id!, novoNumero);
+    const duplicado = await duplicarProcesso(id!, novoNumero);
     if (duplicado) {
       toast.success(`Processo ${novoNumero} criado a partir da duplicação`);
       setShowDuplicarDialog(false);
