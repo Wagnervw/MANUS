@@ -1,18 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useTheme } from '@/contexts/ThemeContext';
-import {
-  LayoutDashboard,
-  FilePlus,
-  FileText,
-  BarChart3,
-  Moon,
-  Sun,
-  Menu,
-  X,
-  Shield,
-  ChevronRight,
-} from 'lucide-react';
+import { LayoutDashboard, FilePlus, FileText, ChartBar as BarChart3, Moon, Sun, Menu, X, Shield, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 

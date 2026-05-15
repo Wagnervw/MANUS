@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, Plus, MoreVertical, Eye, RefreshCw, Filter } from 'lucide-react';
+import { Search, Plus, MoveVertical as MoreVertical, Eye, RefreshCw, Filter } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function Processos() {

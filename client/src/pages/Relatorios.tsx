@@ -16,7 +16,7 @@ import {
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
-import { BarChart3, Users, TrendingUp, FileText } from 'lucide-react';
+import { ChartBar as BarChart3, Users, TrendingUp, FileText } from 'lucide-react';
 
 export default function Relatorios() {
   const { processos } = useProcessos();

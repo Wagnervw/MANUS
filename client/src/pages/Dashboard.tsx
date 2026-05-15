@@ -23,10 +23,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, AreaChart, Area, Legend,
 } from 'recharts';
-import {
-  CheckCircle2, Clock, AlertTriangle, TrendingUp,
-  DollarSign, Award, Trophy,
-} from 'lucide-react';
+import { CircleCheck as CheckCircle2, Clock, TriangleAlert as AlertTriangle, TrendingUp, DollarSign, Award, Trophy } from 'lucide-react';
 
 const HERO_BG = 'https://d2xsxph8kpxj0f.cloudfront.net/310519663134927829/ZdDkYSKthhyyCPQ5Q4kgLX/wagner-hero-banner-hkHKaZYxrfDlKE2dKjKNwp.webp';
 
