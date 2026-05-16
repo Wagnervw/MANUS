@@ -493,7 +493,7 @@ function criarProcessoDemo(
     realizadoPor: operador,
     horarioAcionamento: '08:30',
     atendimentoInLoco: true,
-    situacaoVeiculo: concluido ? 'Sem danos / Liberado Perda Total' : 'No local do evento',
+    situacaoVeiculo: concluido ? 'Sem danos / Liberado' : 'No local do evento',
     condicoesMercadoria: 'Parcialmente Avariada',
     destinacaoMercadoria: concluido ? 'Seguiu Destino' : 'Salvados Armazenado',
     descricaoAtendimento: 'Atendimento padrão no local',
