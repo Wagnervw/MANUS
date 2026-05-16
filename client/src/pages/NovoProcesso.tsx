@@ -522,7 +522,7 @@ export default function NovoProcesso() {
       vistoriaFinal,
     });
 
-    generateProcessoReport(processo, assinatura);
+    await generateProcessoReport(processo, assinatura);
     try { localStorage.removeItem(DRAFT_KEY); } catch {}
     toast.success('Processo criado e relatório gerado com sucesso!');
     setShowAssinaturaDialog(false);

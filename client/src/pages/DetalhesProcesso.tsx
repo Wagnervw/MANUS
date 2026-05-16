@@ -205,8 +205,8 @@ export default function DetalhesProcesso() {
   const parado = isProcessoParado(processo);
   const memoriaCalculo = processo.totalEmbarcado - processo.totalRecebido - processo.totalRecusado - processo.salvadosValor + processo.dispersaoSaque;
 
-  const handleExportarPDF = () => {
-    generateProcessoReport(processo);
+  const handleExportarPDF = async () => {
+    await generateProcessoReport(processo);
     toast.success('Relatório PDF gerado com sucesso!');
   };
 

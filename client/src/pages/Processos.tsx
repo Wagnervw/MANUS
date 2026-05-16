@@ -1,5 +1,5 @@
 // Processos — Wagner Reguladora - Finalização Central
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Link } from 'wouter';
 import { useProcessos } from '@/contexts/SinistrosContext';
 import { getStatusColor, STATUS_PROCESSO, CAUSAS_EVENTO, MEMBROS_CELULA } from '@/lib/data';
@@ -20,6 +20,15 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Search, Plus, MoveVertical as MoreVertical, Eye, RefreshCw, Filter } from 'lucide-react';
 import { toast } from 'sonner';
+
+function useDebouncedValue(value: string, delay: number) {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  return debounced;
+}
 
 function ProcessosTableSkeleton() {
   return (
@@ -63,24 +72,26 @@ function ProcessosTableSkeleton() {
 export default function Processos() {
   const { processos, loading, updateStatus } = useProcessos();
   const [busca, setBusca] = useState('');
+  const buscaDebounced = useDebouncedValue(busca, 300);
   const [filtroStatus, setFiltroStatus] = useState('todos');
   const [filtroCausa, setFiltroCausa] = useState('todos');
   const [filtroOperador, setFiltroOperador] = useState('todos');
 
   const filtrados = useMemo(() => {
+    const termo = buscaDebounced.toLowerCase();
     return processos.filter(p => {
-      const matchBusca = !busca ||
-        p.numero.toLowerCase().includes(busca.toLowerCase()) ||
-        p.operador.toLowerCase().includes(busca.toLowerCase()) ||
-        p.causaEvento.toLowerCase().includes(busca.toLowerCase()) ||
-        (p.segurado || '').toLowerCase().includes(busca.toLowerCase()) ||
-        (p.seguradora || '').toLowerCase().includes(busca.toLowerCase());
+      const matchBusca = !termo ||
+        p.numero.toLowerCase().includes(termo) ||
+        p.operador.toLowerCase().includes(termo) ||
+        p.causaEvento.toLowerCase().includes(termo) ||
+        (p.segurado || '').toLowerCase().includes(termo) ||
+        (p.seguradora || '').toLowerCase().includes(termo);
       const matchStatus = filtroStatus === 'todos' || p.status === filtroStatus;
       const matchCausa = filtroCausa === 'todos' || p.causaEvento === filtroCausa;
       const matchOperador = filtroOperador === 'todos' || p.operador === filtroOperador;
       return matchBusca && matchStatus && matchCausa && matchOperador;
     });
-  }, [processos, busca, filtroStatus, filtroCausa, filtroOperador]);
+  }, [processos, buscaDebounced, filtroStatus, filtroCausa, filtroOperador]);
 
   const handleStatusChange = (id: string, newStatus: typeof STATUS_PROCESSO[number]) => {
     updateStatus(id, newStatus);
