@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo } from 'react';
 import { useLocation } from 'wouter';
 import { toast } from 'sonner';
 import { useProcessos } from '@/contexts/SinistrosContext';
@@ -99,7 +99,6 @@ export default function NovoProcesso() {
   const [step, setStep] = useState(1);
   const [showAssinaturaDialog, setShowAssinaturaDialog] = useState(false);
   const [assinatura, setAssinatura] = useState('');
-  const pendingProcesso = useRef<Omit<import('@/lib/data').Processo, 'id' | 'historico'> | null>(null);
 
   // ---- Aba 1: Abertura ----
   const [numero, setNumero] = useState('');
@@ -126,24 +125,30 @@ export default function NovoProcesso() {
   // ---- Aba 2: Vistoria / Atendimento ----
   // Atendimento fields
   const [resumoAcionamento, setResumoAcionamento] = useState('');
+  const [resumoAtendimento, setResumoAtendimento] = useState('');
   const [situacaoVeiculoAba2, setSituacaoVeiculoAba2] = useState('');
   const [condicoesMercadoriaAba2, setCondicoesMercadoriaAba2] = useState('');
   const [providenciasTomadas, setProvidenciasTomadas] = useState('');
   const [destinacaoMercadoriaAba2, setDestinacaoMercadoriaAba2] = useState('');
-  const [descricaoAtendimentoAba2, setDescricaoAtendimentoAba2] = useState('');
   const [limpezaPistaAba2, setLimpezaPistaAba2] = useState(false);
-  const [declaracaoMotoristaAba2, setDeclaracaoMotoristaAba2] = useState('');
-  const [boAcidenteAba2, setBoAcidenteAba2] = useState('');
   const [localEventoAba2, setLocalEventoAba2] = useState('');
   
   // Vistoria fields
-  const [checklistMaquinasAba2, setChecklistMaquinasAba2] = useState<string[]>([]);
   const [ataVistoriaAba2, setAtaVistoriaAba2] = useState(false);
-  const [planilhaPrejuizoAba2, setPlanilhaPrejuizoAba2] = useState(false);
-  const [identificacaoAnoModelo, setIdentificacaoAnoModelo] = useState('');
-  const [vistoriaLonaAba2, setVistoriaLonaAba2] = useState<'sim' | 'nao' | 'na'>('na');
+  const [inventarioSalvados, setInventarioSalvados] = useState(false);
+  const [documentosAssinados, setDocumentosAssinados] = useState(false);
+  const [documentosAssinadosJustificativa, setDocumentosAssinadosJustificativa] = useState('');
+  const [mercadoriaNovaOuUsada, setMercadoriaNovaOuUsada] = useState('');
+  const [identificacaoAnoModelo, setIdentificacaoAnoModelo] = useState(false);
+  const [fotosEtiqueta, setFotosEtiqueta] = useState(false);
+  const [fotosOdometro, setFotosOdometro] = useState(false);
+  const [orcamentoReparo, setOrcamentoReparo] = useState(false);
+  const [lonaVeiculoInspecionados, setLonaVeiculoInspecionados] = useState(false);
+  const [furosNaLona, setFurosNaLona] = useState(false);
+  const [todasLonasInspecionadas, setTodasLonasInspecionadas] = useState(false);
   const [ressalvaRecusa, setRessalvaRecusa] = useState('');
   const [acionamentoPericia, setAcionamentoPericia] = useState(false);
+  const [acionamentoSindicancia, setAcionamentoSindicancia] = useState(false);
   
   // Tacógrafo (mantém na parte inferior)
   const [justificativaAtraso, setJustificativaAtraso] = useState('');
@@ -157,29 +162,22 @@ export default function NovoProcesso() {
   // ---- Aba 3: Checklist Operacional ----
   const [docsFotos, setDocsFotos] = useState(false);
   const [custosAprovados, setCustosAprovados] = useState(false);
-  const [historicoStatus, setHistoricoStatus] = useState('');
-  const [salvadosLancados, setSalvadosLancados] = useState('');
-  const [vistoriadorEncerrado, setVistoriadorEncerrado] = useState(false);
-  const [naoConformidade, setNaoConformidade] = useState(false);
-  const [naoConformidadeDesc, setNaoConformidadeDesc] = useState('');
-  const [checklistEspecial, setChecklistEspecial] = useState<string[]>([]);
   const [ataConferida, setAtaConferida] = useState(false);
-  const [planilhaConferida, setPlanilhaConferida] = useState(false);
-  const [planilhaJustificativa, setPlanilhaJustificativa] = useState('');
-  const [mercadoriasSemInfo, setMercadoriasSemInfo] = useState(false);
-  const [limpezaPista, setLimpezaPista] = useState(false);
-  const [pericia, setPericia] = useState(false);
+  
+  const [custosLancados, setCustosLancados] = useState(false);
+  const [custosUltrapassaram, setCustosUltrapassaram] = useState('');
+  const [seguradoraNotificada, setSeguradoraNotificada] = useState(false);
+  const [infoComplementaresLancadas, setInfoComplementaresLancadas] = useState(false);
   const [alteracaoReserva, setAlteracaoReserva] = useState(false);
-  const [vistoriaLona, setVistoriaLona] = useState<'sim' | 'nao' | 'na'>('na');
 
   // ---- Aba 4: Prejuízo ----
   const [prejuizoApurado, setPrejuizoApurado] = useState(true);
   const [motivoPrejuizo, setMotivoPrejuizo] = useState('');
-  const [totalEmbarcado, setTotalEmbarcado] = useState(0);
-  const [totalRecebido, setTotalRecebido] = useState(0);
-  const [totalRecusado, setTotalRecusado] = useState(0);
-  const [salvadosValor, setSalvadosValor] = useState(0);
-  const [faltaSaque, setFaltaSaque] = useState(0);
+  const [totalEmbarcado, setTotalEmbarcado] = useState<number | ''>('');
+  const [totalRecebido, setTotalRecebido] = useState<number | ''>('');
+  const [totalRecusado, setTotalRecusado] = useState<number | ''>('');
+  const [salvadosValor, setSalvadosValor] = useState<number | ''>('');
+  const [dispersaoSaque, setDispersaoSaque] = useState<number | ''>('');
 
   // ---- Aba 5: Finalizar Central ----
   const [modelo, setModelo] = useState('');
@@ -205,8 +203,12 @@ export default function NovoProcesso() {
   };
 
   const memoriaCalculo = useMemo(() => {
-    return totalEmbarcado - totalRecebido - totalRecusado - salvadosValor + faltaSaque;
-  }, [totalEmbarcado, totalRecebido, totalRecusado, salvadosValor, faltaSaque]);
+    const emb = Number(totalEmbarcado) || 0;
+    const rec = Number(totalRecebido) || 0;
+    const rec2 = Number(totalRecusado) || 0;
+    const salv = Number(salvadosValor) || 0;
+    return emb - rec - rec2 - salv;
+  }, [totalEmbarcado, totalRecebido, totalRecusado, salvadosValor]);
 
   const temAtraso = useMemo(() => {
     if (!dataEncVistoria || !dataEncFinalizar) return false;
@@ -229,29 +231,47 @@ export default function NovoProcesso() {
       velocidadeRegistrada: velRegistrada,
       velocidadePermitida: velPermitida,
       discoVencido,
-      documentosFotosAnalisados: docsFotos,
+      documentosFotosRecebidos: docsFotos,
       custosAprovados,
-      historicoStatus,
-      salvadosLancados,
-      vistoriadorEncerrado,
-      naoConformidade,
-      naoConformidadeDescricao: naoConformidade ? naoConformidadeDesc : '',
-      checklistEspecial,
-      ataVistoriaConferida: ataConferida,
-      planilhaPrejuizoConferida: planilhaConferida,
-      planilhaPrejuizoJustificativa: !planilhaConferida ? planilhaJustificativa : '',
-      mercadoriasSemInfo,
-      limpezaPistaSemTratativas: limpezaPista,
-      periciaSindicante: pericia,
+      vistoriadorEncerrado: custosAprovados,
+      tratativasEmailEncerradas: ataConferida,
+      historicoStatus: '',
+      salvadosLancados: '',
+      naoConformidade: false,
+      naoConformidadeDescricao: '',
+      checklistEspecial: [],
+      inventarioSalvados,
+      planilhaPrejuizoJustificativa: '',
+      mercadoriasSemInfo: false,
+      limpezaPistaSemTratativas: false,
+      periciaSindicante: false,
       alteracaoReserva,
-      vistoriaLonaAssoalho: vistoriaLona,
+      lonaVeiculoInspecionados,
+      furosNaLona,
+      todasLonasInspecionadas,
+      acionamentoSindicancia,
+      documentosAssinados,
+      documentosAssinadosJustificativa: !documentosAssinados ? documentosAssinadosJustificativa : '',
+      mercadoriaNovaOuUsada,
+      identificacaoAnoModelo,
+      fotosEtiquetaIdentificacao: fotosEtiqueta,
+      fotosOdometro,
+      orcamentoReparo,
+      custosLancados,
+      custosUltrapassaramAutonomia: custosUltrapassaram,
+      seguradoraNotificada: custosUltrapassaram === 'sim' ? seguradoraNotificada : false,
+      informacoesComplementaresLancadas: infoComplementaresLancadas,
       prejuizoApurado,
       motivoPrejuizoNaoApurado: !prejuizoApurado ? motivoPrejuizo : '',
-      totalEmbarcado, totalRecebido, totalRecusado, salvadosValor, faltaSaque,
+      totalEmbarcado: Number(totalEmbarcado) || 0,
+      totalRecebido: Number(totalRecebido) || 0,
+      totalRecusado: Number(totalRecusado) || 0,
+      salvadosValor: Number(salvadosValor) || 0,
+      dispersaoSaque: Number(dispersaoSaque) || 0,
       modeloFinalizarCentral: modelo,
       causaEvento: causa,
-      declaracaoMotorista: declaracaoMotoristaAba2,
-      boAcidente: bo,
+      relatoMotorista: resumoAcionamento,
+      resumoAtendimento,
       localEvento: localEventoAba2,
       discoTacografo,
       parecerVelocidade: parecer,
@@ -268,22 +288,87 @@ export default function NovoProcesso() {
       vistoriaFinal,
     };
     
-    pendingProcesso.current = processo;
+    const novoProcesso = addProcesso(processo);
     setShowAssinaturaDialog(true);
   };
 
-  const handleAssinatura = async () => {
+  const handleAssinatura = () => {
     if (!assinatura.trim()) {
       toast.error('Digite sua assinatura digital');
       return;
     }
-    if (!pendingProcesso.current) return;
-
-    const novoProcesso = await addProcesso(pendingProcesso.current);
+    
+    const processo = addProcesso({
+      numero, operador, segurado, seguradora, dataAbertura, status: 'Em andamento',
+      dataEncerramentoVistoriador: dataEncVistoria,
+      dataEncerramentoFinalizarCentral: dataEncFinalizar,
+      justificativaAtraso: temAtraso ? justificativaAtraso : '',
+      atendimentoVistoria,
+      tacografoColetado: tacografo,
+      motivoTacografoNaoColetado: tacografo === 'nao' ? motivoTacografo : '',
+      velocidadeRegistrada: velRegistrada,
+      velocidadePermitida: velPermitida,
+      discoVencido,
+      documentosFotosRecebidos: docsFotos,
+      custosAprovados,
+      vistoriadorEncerrado: custosAprovados,
+      tratativasEmailEncerradas: ataConferida,
+      historicoStatus: '',
+      salvadosLancados: '',
+      naoConformidade: false,
+      naoConformidadeDescricao: '',
+      checklistEspecial: [],
+      inventarioSalvados,
+      planilhaPrejuizoJustificativa: '',
+      mercadoriasSemInfo: false,
+      limpezaPistaSemTratativas: false,
+      periciaSindicante: false,
+      alteracaoReserva,
+      lonaVeiculoInspecionados,
+      furosNaLona,
+      todasLonasInspecionadas,
+      acionamentoSindicancia,
+      documentosAssinados,
+      documentosAssinadosJustificativa: !documentosAssinados ? documentosAssinadosJustificativa : '',
+      mercadoriaNovaOuUsada,
+      identificacaoAnoModelo,
+      fotosEtiquetaIdentificacao: fotosEtiqueta,
+      fotosOdometro,
+      orcamentoReparo,
+      custosLancados,
+      custosUltrapassaramAutonomia: custosUltrapassaram,
+      seguradoraNotificada: custosUltrapassaram === 'sim' ? seguradoraNotificada : false,
+      informacoesComplementaresLancadas: infoComplementaresLancadas,
+      prejuizoApurado,
+      motivoPrejuizoNaoApurado: !prejuizoApurado ? motivoPrejuizo : '',
+      totalEmbarcado: Number(totalEmbarcado) || 0,
+      totalRecebido: Number(totalRecebido) || 0,
+      totalRecusado: Number(totalRecusado) || 0,
+      salvadosValor: Number(salvadosValor) || 0,
+      dispersaoSaque: Number(dispersaoSaque) || 0,
+      modeloFinalizarCentral: modelo,
+      causaEvento: causa,
+      relatoMotorista: resumoAcionamento,
+      resumoAtendimento,
+      localEvento: localEventoAba2,
+      discoTacografo,
+      parecerVelocidade: parecer,
+      acionamentoComunicado: acionamento,
+      realizadoPor,
+      horarioAcionamento: horario,
+      atendimentoInLoco,
+      situacaoVeiculo,
+      condicoesMercadoria: condicoesMerc,
+      destinacaoMercadoria: destinacaoMerc,
+      descricaoAtendimento: descricaoAtend,
+      observacaoAtendimento: obsAtend,
+      documentosPendentes: docsPendentes,
+      vistoriaFinal,
+    });
 
     // Gerar PDF com assinatura
-    generateProcessoReport(novoProcesso, assinatura);
-
+    generateProcessoReport(processo, assinatura);
+    
     toast.success('Processo criado e relatório gerado com sucesso!');
     setShowAssinaturaDialog(false);
     navigate('/processos');
@@ -425,8 +510,8 @@ export default function NovoProcesso() {
                       <AccordionTrigger className="px-4">📋 Atendimento</AccordionTrigger>
                       <AccordionContent className="px-4 space-y-4">
                         <div className="space-y-2">
-                          <Label>Resumo do Acionamento</Label>
-                          <Textarea placeholder="Descreva o resumo..." value={resumoAcionamento} onChange={e => setResumoAcionamento(e.target.value)} rows={2} />
+                          <Label>Relato do Motorista</Label>
+                          <Textarea placeholder="Descreva o relato..." value={resumoAcionamento} onChange={e => setResumoAcionamento(e.target.value)} rows={2} />
                         </div>
                         <div className="space-y-2">
                           <Label>Situação do Veículo</Label>
@@ -443,6 +528,10 @@ export default function NovoProcesso() {
                           </Select>
                         </div>
                         <div className="space-y-2">
+                          <Label>Resumo do Atendimento</Label>
+                          <Textarea placeholder="Descreva o resumo do atendimento..." value={resumoAtendimento} onChange={e => setResumoAtendimento(e.target.value)} rows={3} />
+                        </div>
+                        <div className="space-y-2">
                           <Label>Providências Tomadas</Label>
                           <Textarea placeholder="Descreva as providências..." value={providenciasTomadas} onChange={e => setProvidenciasTomadas(e.target.value)} rows={2} />
                         </div>
@@ -455,26 +544,58 @@ export default function NovoProcesso() {
                         </div>
 
                         <ToggleRow label="Limpeza de Pista" checked={limpezaPistaAba2} onChange={setLimpezaPistaAba2} id="limpeza-pista-aba2" />
-                        <div className="space-y-2">
-                          <Label>Declaração do Motorista</Label>
-                          <Select value={declaracaoMotoristaAba2} onValueChange={setDeclaracaoMotoristaAba2}>
-                            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                            <SelectContent>{DECLARACAO_OPTIONS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Boletim de Ocorrência do Acidente</Label>
-                          <Select value={boAcidenteAba2} onValueChange={setBoAcidenteAba2}>
-                            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                            <SelectContent>{BO_OPTIONS.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
-                          </Select>
-                        </div>
+                        
                         <div className="space-y-2">
                           <Label>Local do Evento</Label>
-                          <Select value={localEventoAba2} onValueChange={setLocalEventoAba2}>
-                            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                            <SelectContent>{LOCAIS_EVENTO.map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}</SelectContent>
-                          </Select>
+                          <Textarea placeholder="Descreva o local onde ocorreu o evento..." value={localEventoAba2} onChange={e => setLocalEventoAba2(e.target.value)} rows={2} />
+                        </div>
+
+                        <div className="mt-6">
+                          <SectionTitle>Tacógrafo</SectionTitle>
+                          <RadioGroup value={tacografo} onValueChange={(v: any) => setTacografo(v)}>
+                            <div className="flex items-center space-x-2 p-3 rounded-lg border border-border">
+                              <RadioGroupItem value="sim" id="taco-sim" />
+                              <Label htmlFor="taco-sim" className="flex-1 cursor-pointer">Sim</Label>
+                            </div>
+                            <div className="flex items-center space-x-2 p-3 rounded-lg border border-border">
+                              <RadioGroupItem value="nao" id="taco-nao" />
+                              <Label htmlFor="taco-nao" className="flex-1 cursor-pointer">Não</Label>
+                            </div>
+                            <div className="flex items-center space-x-2 p-3 rounded-lg border border-border">
+                              <RadioGroupItem value="nao_necessario" id="taco-na" />
+                              <Label htmlFor="taco-na" className="flex-1 cursor-pointer">Não necessário</Label>
+                            </div>
+                          </RadioGroup>
+
+                          {tacografo === 'nao' && (
+                            <div className="space-y-2 mt-4">
+                              <Label>Motivo *</Label>
+                              <Select value={motivoTacografo} onValueChange={setMotivoTacografo}>
+                                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                                <SelectContent>{MOTIVOS_TACOGRAFO_NAO_COLETADO.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
+                              </Select>
+                            </div>
+                          )}
+
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                            <div className="space-y-2">
+                              <Label>Velocidade Registrada</Label>
+                              <Select value={velRegistrada} onValueChange={setVelRegistrada}>
+                                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                                <SelectContent>{FAIXAS_VELOCIDADE.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Velocidade Permitida</Label>
+                              <Select value={velPermitida} onValueChange={setVelPermitida}>
+                                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                                <SelectContent>{VELOCIDADES_PERMITIDAS.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}</SelectContent>
+                              </Select>
+                            </div>
+                            <div className="flex items-end">
+                              <ToggleRow label="Disco Vencido" checked={discoVencido} onChange={setDiscoVencido} id="disco-vencido" />
+                            </div>
+                          </div>
                         </div>
                       </AccordionContent>
                     </AccordionItem>
@@ -487,136 +608,130 @@ export default function NovoProcesso() {
                     <AccordionItem value="vistoria">
                       <AccordionTrigger className="px-4">🔍 Vistoria</AccordionTrigger>
                       <AccordionContent className="px-4 space-y-4">
-                        <div className="space-y-2">
-                          <Label>Checklist de Máquinas/Equipamentos</Label>
-                          <div className="space-y-2 mt-2">
-                            {CHECKLIST_ESPECIAL_ITEMS.map(item => (
-                              <CheckItem key={item} label={item} checked={checklistMaquinasAba2.includes(item)} onChange={() => toggleList(checklistMaquinasAba2, setChecklistMaquinasAba2, item)} />
-                            ))}
-                          </div>
-                        </div>
                         <ToggleRow label="Ata de Vistoria" checked={ataVistoriaAba2} onChange={setAtaVistoriaAba2} id="ata-vistoria-aba2" />
-                        <ToggleRow label="Planilha de Prejuízo" checked={planilhaPrejuizoAba2} onChange={setPlanilhaPrejuizoAba2} id="planilha-prejuizo-aba2" />
+                        <ToggleRow label="Inventário de Salvados" checked={inventarioSalvados} onChange={setInventarioSalvados} id="inventario-salvados-aba2" />
+                        <ToggleRow
+                          label="Documentos acima foram assinados?"
+                          checked={documentosAssinados}
+                          onChange={setDocumentosAssinados}
+                          id="documentos-assinados"
+                        />
+                        {!documentosAssinados && (
+                          <div className="space-y-2">
+                            <Label>Justificativa</Label>
+                            <Textarea
+                              placeholder="Justifique por que os documentos não foram assinados..."
+                              value={documentosAssinadosJustificativa}
+                              onChange={e => setDocumentosAssinadosJustificativa(e.target.value)}
+                              rows={2}
+                            />
+                          </div>
+                        )}
+
+                        <SectionTitle>Vistoria Equipamentos</SectionTitle>
                         <div className="space-y-2">
-                          <Label>Identificação do Ano e Modelo</Label>
-                          <Input placeholder="Ex: 2020, Volvo FH" value={identificacaoAnoModelo} onChange={e => setIdentificacaoAnoModelo(e.target.value)} />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Vistoria na Lona e Veículo</Label>
-                          <RadioGroup value={vistoriaLonaAba2} onValueChange={(v: any) => setVistoriaLonaAba2(v)}>
-                            <div className="flex items-center space-x-2 p-2 rounded border border-border">
-                              <RadioGroupItem value="sim" id="vistoria-lona-sim" />
-                              <Label htmlFor="vistoria-lona-sim" className="cursor-pointer">Sim</Label>
+                          <Label>Mercadoria Nova ou Usada</Label>
+                          <RadioGroup value={mercadoriaNovaOuUsada} onValueChange={setMercadoriaNovaOuUsada}>
+                            <div className="flex items-center space-x-2 p-3 rounded-lg border border-border">
+                              <RadioGroupItem value="nova" id="merc-nova" />
+                              <Label htmlFor="merc-nova" className="flex-1 cursor-pointer">Nova</Label>
                             </div>
-                            <div className="flex items-center space-x-2 p-2 rounded border border-border">
-                              <RadioGroupItem value="nao" id="vistoria-lona-nao" />
-                              <Label htmlFor="vistoria-lona-nao" className="cursor-pointer">Não</Label>
-                            </div>
-                            <div className="flex items-center space-x-2 p-2 rounded border border-border">
-                              <RadioGroupItem value="na" id="vistoria-lona-na" />
-                              <Label htmlFor="vistoria-lona-na" className="cursor-pointer">N/A</Label>
+                            <div className="flex items-center space-x-2 p-3 rounded-lg border border-border">
+                              <RadioGroupItem value="usada" id="merc-usada" />
+                              <Label htmlFor="merc-usada" className="flex-1 cursor-pointer">Usada</Label>
                             </div>
                           </RadioGroup>
                         </div>
-                        <div className="space-y-2">
+                        <ToggleRow label="Identificação do Ano e Modelo" checked={identificacaoAnoModelo} onChange={setIdentificacaoAnoModelo} id="id-ano-modelo" />
+                        <ToggleRow label="Fotos da Etiqueta de Identificação" checked={fotosEtiqueta} onChange={setFotosEtiqueta} id="fotos-etiqueta" />
+                        <ToggleRow label="Fotos do Odômetro" checked={fotosOdometro} onChange={setFotosOdometro} id="fotos-odometro" />
+                        <ToggleRow label="Orçamento de Reparo" checked={orcamentoReparo} onChange={setOrcamentoReparo} id="orcamento-reparo" />
+
+                        <SectionTitle>Vistoria na Lona e Veículo</SectionTitle>
+                        <ToggleRow label="Lona e Veículo Inspecionados" checked={lonaVeiculoInspecionados} onChange={setLonaVeiculoInspecionados} id="lona-inspecionada" />
+                        <ToggleRow label="Furos na Lona" checked={furosNaLona} onChange={setFurosNaLona} id="furos-lona" />
+                        <ToggleRow label="Todas as Lonas foram Inspecionadas" checked={todasLonasInspecionadas} onChange={setTodasLonasInspecionadas} id="todas-lonas" />
+
+                        <div className="space-y-2 mt-4">
                           <Label>Ressalva em Casos de Recusa</Label>
                           <Textarea placeholder="Descreva a ressalva..." value={ressalvaRecusa} onChange={e => setRessalvaRecusa(e.target.value)} rows={2} />
                         </div>
                         <ToggleRow label="Acionamento de Perícia" checked={acionamentoPericia} onChange={setAcionamentoPericia} id="acionamento-pericia-aba2" />
+                        <ToggleRow
+                          label="Acionamento Sindicância"
+                          checked={acionamentoSindicancia}
+                          onChange={setAcionamentoSindicancia}
+                          id="acionamento-sindicancia"
+                        />
                       </AccordionContent>
                     </AccordionItem>
                   </Accordion>
                 </div>
               </div>
 
-              <Separator />
-              <SectionTitle>Tacógrafo</SectionTitle>
-              <RadioGroup value={tacografo} onValueChange={(v: any) => setTacografo(v)}>
-                <div className="flex items-center space-x-2 p-3 rounded-lg border border-border">
-                  <RadioGroupItem value="sim" id="taco-sim" />
-                  <Label htmlFor="taco-sim" className="flex-1 cursor-pointer">Sim</Label>
-                </div>
-                <div className="flex items-center space-x-2 p-3 rounded-lg border border-border">
-                  <RadioGroupItem value="nao" id="taco-nao" />
-                  <Label htmlFor="taco-nao" className="flex-1 cursor-pointer">Não</Label>
-                </div>
-                <div className="flex items-center space-x-2 p-3 rounded-lg border border-border">
-                  <RadioGroupItem value="nao_necessario" id="taco-na" />
-                  <Label htmlFor="taco-na" className="flex-1 cursor-pointer">Não necessário</Label>
-                </div>
-              </RadioGroup>
 
-              {tacografo === 'nao' && (
-                <div className="space-y-2">
-                  <Label>Motivo *</Label>
-                  <Select value={motivoTacografo} onValueChange={setMotivoTacografo}>
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                    <SelectContent>{MOTIVOS_TACOGRAFO_NAO_COLETADO.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label>Velocidade Registrada</Label>
-                  <Select value={velRegistrada} onValueChange={setVelRegistrada}>
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                    <SelectContent>{FAIXAS_VELOCIDADE.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Velocidade Permitida</Label>
-                  <Select value={velPermitida} onValueChange={setVelPermitida}>
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                    <SelectContent>{VELOCIDADES_PERMITIDAS.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                <div className="flex items-end">
-                  <ToggleRow label="Disco Vencido" checked={discoVencido} onChange={setDiscoVencido} id="disco-vencido" />
-                </div>
-              </div>
             </>
           )}
 
           {/* ============ ABA 3: CHECKLIST ============ */}
           {step === 3 && (
             <>
-              <ToggleRow label="Documentos/Fotos Analisados" checked={docsFotos} onChange={setDocsFotos} id="docs-fotos" />
-              <ToggleRow label="Custos Aprovados" checked={custosAprovados} onChange={setCustosAprovados} id="custos" />
-              <ToggleRow label="Vistoriador Encerrado" checked={vistoriadorEncerrado} onChange={setVistoriadorEncerrado} id="vistoriador" />
-              <ToggleRow label="Ata Conferida" checked={ataConferida} onChange={setAtaConferida} id="ata" />
+              <ToggleRow label="Documentos / Fotos Recebidos" checked={docsFotos} onChange={setDocsFotos} id="docs-fotos" />
+              <ToggleRow label="Vistoriador Encerrado" checked={custosAprovados} onChange={setCustosAprovados} id="custos" />
+              <ToggleRow label="Tratativas E-mail Encerradas" checked={ataConferida} onChange={setAtaConferida} id="ata" />
 
+              <Separator />
+              <SectionTitle>Custos</SectionTitle>
 
+              <ToggleRow label="Custos Lançados" checked={custosLancados} onChange={setCustosLancados} id="custos-lancados" />
 
-              <div className="space-y-2">
-                <Label>Salvados Lançados</Label>
-                <Select value={salvadosLancados} onValueChange={setSalvadosLancados}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>{SALVADOS_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                </Select>
+              <div className="space-y-3">
+                <Label className="font-medium">Custos Ultrapassaram nossa Autonomia?</Label>
+                
+                <div
+                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                    custosUltrapassaram === 'sim' ? 'border-primary bg-primary/5' : 'border-border'
+                  }`}
+                  onClick={() => setCustosUltrapassaram('sim')}
+                >
+                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                    custosUltrapassaram === 'sim' ? 'border-primary' : 'border-muted-foreground'
+                  }`}>
+                    {custosUltrapassaram === 'sim' && <div className="w-2 h-2 rounded-full bg-primary" />}
+                  </div>
+                  <span className="text-sm font-medium">Sim</span>
+                </div>
+
+                {custosUltrapassaram === 'sim' && (
+                  <ToggleRow
+                    label="Seguradora Notificada"
+                    checked={seguradoraNotificada}
+                    onChange={setSeguradoraNotificada}
+                    id="seguradora-notificada"
+                  />
+                )}
+
+                <div
+                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                    custosUltrapassaram === 'nao' ? 'border-primary bg-primary/5' : 'border-border'
+                  }`}
+                  onClick={() => setCustosUltrapassaram('nao')}
+                >
+                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                    custosUltrapassaram === 'nao' ? 'border-primary' : 'border-muted-foreground'
+                  }`}>
+                    {custosUltrapassaram === 'nao' && <div className="w-2 h-2 rounded-full bg-primary" />}
+                  </div>
+                  <span className="text-sm font-medium">Não</span>
+                </div>
               </div>
 
-              <Separator />
-              <ToggleRow label="Não Conformidade" checked={naoConformidade} onChange={setNaoConformidade} id="nc" />
-              
-              {naoConformidade && (
-                <div className="space-y-2">
-                  <Label>Descrição da NC *</Label>
-                  <Select value={naoConformidadeDesc} onValueChange={setNaoConformidadeDesc}>
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                    <SelectContent>{NAO_CONFORMIDADE_DESCRICOES.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-              )}
-
-
-
-
-
-              <Separator />
-              <ToggleRow label="Mercadorias/Equip. sem Info" checked={mercadoriasSemInfo} onChange={setMercadoriasSemInfo} id="merc-info" />
-              <ToggleRow label="Limpeza de Pista sem Tratativas" checked={limpezaPista} onChange={setLimpezaPista} id="limpeza" />
-              <ToggleRow label="Perícia Sindicante" checked={pericia} onChange={setPericia} id="pericia" />
+              <ToggleRow
+                label="Informações Complementares Lançadas"
+                checked={infoComplementaresLancadas}
+                onChange={setInfoComplementaresLancadas}
+                id="info-complementares"
+              />
 
             </>
           )}
@@ -643,23 +758,23 @@ export default function NovoProcesso() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Total Embarcado (R$)</Label>
-                      <Input type="number" value={totalEmbarcado} onChange={e => setTotalEmbarcado(Number(e.target.value))} />
+                      <Input type="number" value={totalEmbarcado} onChange={e => setTotalEmbarcado(e.target.value === '' ? '' : Number(e.target.value))} />
                     </div>
                     <div className="space-y-2">
                       <Label>Total Recebido (R$)</Label>
-                      <Input type="number" value={totalRecebido} onChange={e => setTotalRecebido(Number(e.target.value))} />
+                      <Input type="number" value={totalRecebido} onChange={e => setTotalRecebido(e.target.value === '' ? '' : Number(e.target.value))} />
                     </div>
                     <div className="space-y-2">
                       <Label>Total Recusado (R$)</Label>
-                      <Input type="number" value={totalRecusado} onChange={e => setTotalRecusado(Number(e.target.value))} />
+                      <Input type="number" value={totalRecusado} onChange={e => setTotalRecusado(e.target.value === '' ? '' : Number(e.target.value))} />
                     </div>
                     <div className="space-y-2">
                       <Label>Salvados (R$)</Label>
-                      <Input type="number" value={salvadosValor} onChange={e => setSalvadosValor(Number(e.target.value))} />
+                      <Input type="number" value={salvadosValor} onChange={e => setSalvadosValor(e.target.value === '' ? '' : Number(e.target.value))} />
                     </div>
                     <div className="space-y-2">
-                      <Label>Falta / Saque (R$)</Label>
-                      <Input type="number" value={faltaSaque} onChange={e => setFaltaSaque(Number(e.target.value))} />
+                      <Label>Dispersão / Saque (R$)</Label>
+                      <Input type="number" value={dispersaoSaque} onChange={e => setDispersaoSaque(e.target.value === '' ? '' : Number(e.target.value))} />
                     </div>
                   </div>
 
@@ -690,7 +805,7 @@ export default function NovoProcesso() {
           {/* ============ ABA 5: FINALIZAR ============ */}
           {step === 5 && (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <div className="space-y-2">
                   <Label>Modelo Finalizar Central</Label>
                   <Select value={modelo} onValueChange={setModelo}>
@@ -698,58 +813,6 @@ export default function NovoProcesso() {
                     <SelectContent>{MODELOS_FINALIZAR_CENTRAL.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label>Tempo/Causa do Evento</Label>
-                  <Select value={causa} onValueChange={setCausa}>
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                    <SelectContent>{CAUSAS_EVENTO.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <Separator />
-              <SectionTitle>Confirmações</SectionTitle>
-              <ToggleRow label="Documentação Recebida" checked={docsFotos} onChange={setDocsFotos} id="doc-recebida-final" />
-              <ToggleRow label="Fotos Recebidas e Analisadas" checked={ataConferida} onChange={setAtaConferida} id="fotos-final" />
-              <ToggleRow label="Custos Aprovados" checked={custosAprovados} onChange={setCustosAprovados} id="custos-final" />
-              <p className="text-xs text-muted-foreground -mt-2">Caso os custos ultrapassem a autonomia, informar se houve deliberação/autorização da companhia</p>
-              <ToggleRow label="Histórico Completo Lançado" checked={vistoriadorEncerrado} onChange={setVistoriadorEncerrado} id="historico-final" />
-              <ToggleRow label="Limpeza de Pista" checked={limpezaPista} onChange={setLimpezaPista} id="limpeza-final" />
-              <ToggleRow label="Acionamento de Perícia/Sindicância" checked={pericia} onChange={setPericia} id="pericia-final" />
-
-              <Separator />
-              <SectionTitle>Situação Final</SectionTitle>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Situação final do veículo</Label>
-                  <Select value={situacaoVeiculo} onValueChange={setSituacaoVeiculo}>
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                    <SelectContent>{SITUACAO_VEICULO_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Condições da mercadoria</Label>
-                  <Select value={condicoesMerc} onValueChange={setCondicoesMerc}>
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                    <SelectContent>{CONDICOES_MERCADORIA_OPTIONS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Destinação da mercadoria</Label>
-                  <Select value={destinacaoMerc} onValueChange={setDestinacaoMerc}>
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                    <SelectContent>{DESTINACAO_MERCADORIA_OPTIONS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Providências tomadas</Label>
-                  <Textarea placeholder="Descreva as providências..." value={providenciasTomadas} onChange={e => setProvidenciasTomadas(e.target.value)} rows={2} />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Resumo do atendimento</Label>
-                <Textarea placeholder="Resumo geral do atendimento..." value={descricaoAtend} onChange={e => setDescricaoAtend(e.target.value)} rows={2} />
               </div>
 
               <Separator />
