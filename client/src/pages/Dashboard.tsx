@@ -27,19 +27,20 @@ import { CircleCheck as CheckCircle2, Clock, TriangleAlert as AlertTriangle, Tre
 
 const HERO_BG = 'https://d2xsxph8kpxj0f.cloudfront.net/310519663134927829/ZdDkYSKthhyyCPQ5Q4kgLX/wagner-hero-banner-hkHKaZYxrfDlKE2dKjKNwp.webp';
 
-function StatCard({ title, value, subtitle, icon: Icon, color }: {
-  title: string; value: string | number; subtitle: string; icon: React.ElementType; color: string;
+function StatCard({ title, value, subtitle, icon: Icon, color, accentGradient }: {
+  title: string; value: string | number; subtitle: string; icon: React.ElementType; color: string; accentGradient: string;
 }) {
   return (
-    <Card className="relative overflow-hidden group hover:shadow-md transition-shadow duration-200">
-      <CardContent className="p-5">
+    <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5">
+      <div className={`absolute inset-0 opacity-[0.04] ${accentGradient}`} />
+      <CardContent className="p-5 relative">
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
-            <p className="text-3xl font-bold text-foreground mt-1">{value}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
+            <p className="text-3xl font-bold text-foreground mt-1.5 tracking-tight">{value}</p>
             <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
           </div>
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${color}`}>
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${color} transition-transform duration-300 group-hover:scale-110`}>
             <Icon className="w-5 h-5" />
           </div>
         </div>
@@ -67,23 +68,24 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       {/* Header with hero background */}
-      <div className="relative rounded-xl overflow-hidden h-32 md:h-36">
-        <img src={HERO_BG} alt="" className="absolute inset-0 w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-900/90 to-blue-800/70" />
-        <div className="relative h-full flex items-center px-6">
+      <div className="relative rounded-2xl overflow-hidden h-32 md:h-36 shadow-lg">
+        <img src={HERO_BG} alt="" className="absolute inset-0 w-full h-full object-cover scale-105" />
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-900/95 via-blue-900/85 to-blue-800/60" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(59,130,246,0.15),_transparent_60%)]" />
+        <div className="relative h-full flex items-center px-6 md:px-8">
           <div>
-            <h1 className="text-2xl font-bold text-white">Dashboard</h1>
-            <p className="text-sm text-blue-100/80 mt-1">Visão geral da operação — Finalização Central</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight">Dashboard</h1>
+            <p className="text-sm text-blue-100/70 mt-1 font-medium">Visao geral da operacao -- Finalizacao Central</p>
           </div>
         </div>
       </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Total Processos" value={stats.total} subtitle="este mês" icon={TrendingUp} color="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" />
-        <StatCard title="Concluídos" value={stats.concluidos} subtitle="finalizados" icon={CheckCircle2} color="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300" />
-        <StatCard title="Em Andamento" value={stats.emAndamento} subtitle="em processamento" icon={Clock} color="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300" />
-        <StatCard title="Pendentes" value={stats.pendentes} subtitle="aguardando ação" icon={AlertTriangle} color="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300" />
+        <StatCard title="Total Processos" value={stats.total} subtitle="este mês" icon={TrendingUp} color="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" accentGradient="bg-gradient-to-br from-blue-500 to-blue-700" />
+        <StatCard title="Concluídos" value={stats.concluidos} subtitle="finalizados" icon={CheckCircle2} color="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300" accentGradient="bg-gradient-to-br from-emerald-500 to-emerald-700" />
+        <StatCard title="Em Andamento" value={stats.emAndamento} subtitle="em processamento" icon={Clock} color="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300" accentGradient="bg-gradient-to-br from-amber-400 to-amber-600" />
+        <StatCard title="Pendentes" value={stats.pendentes} subtitle="aguardando ação" icon={AlertTriangle} color="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300" accentGradient="bg-gradient-to-br from-red-500 to-red-700" />
       </div>
 
       {/* Bonificação + Meta */}
@@ -175,15 +177,16 @@ export default function Dashboard() {
                 <AreaChart data={processosPorMes}>
                   <defs>
                     <linearGradient id="gradBlue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#1e40af" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#1e40af" stopOpacity={0} />
+                      <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.4} />
+                      <stop offset="50%" stopColor="#1e40af" stopOpacity={0.15} />
+                      <stop offset="100%" stopColor="#1e40af" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis dataKey="mes" tick={{ fontSize: 12 }} stroke="var(--muted-foreground)" />
-                  <YAxis tick={{ fontSize: 12 }} stroke="var(--muted-foreground)" />
-                  <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--card)' }} />
-                  <Area type="monotone" dataKey="quantidade" stroke="#1e40af" fill="url(#gradBlue)" strokeWidth={2} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" strokeOpacity={0.5} />
+                  <XAxis dataKey="mes" tick={{ fontSize: 12 }} stroke="var(--muted-foreground)" tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 12 }} stroke="var(--muted-foreground)" tickLine={false} axisLine={false} />
+                  <Tooltip contentStyle={{ borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--card)', backdropFilter: 'blur(8px)', boxShadow: '0 8px 32px rgba(0,0,0,0.12)' }} />
+                  <Area type="monotone" dataKey="quantidade" stroke="#2563eb" fill="url(#gradBlue)" strokeWidth={2.5} dot={{ r: 4, fill: '#2563eb', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6, fill: '#1e40af', strokeWidth: 2, stroke: '#fff' }} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -199,12 +202,26 @@ export default function Dashboard() {
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={processosPorStatus} cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={4} dataKey="quantidade" nameKey="status" label={({ status, percent }) => `${status} ${(percent * 100).toFixed(0)}%`}>
+                  <defs>
+                    <linearGradient id="gradConcluido" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stopColor="#10b981" />
+                      <stop offset="100%" stopColor="#059669" />
+                    </linearGradient>
+                    <linearGradient id="gradAndamento" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stopColor="#fbbf24" />
+                      <stop offset="100%" stopColor="#f59e0b" />
+                    </linearGradient>
+                    <linearGradient id="gradPendente" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stopColor="#f87171" />
+                      <stop offset="100%" stopColor="#dc2626" />
+                    </linearGradient>
+                  </defs>
+                  <Pie data={processosPorStatus} cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={4} dataKey="quantidade" nameKey="status" label={({ status, percent }) => `${status} ${(percent * 100).toFixed(0)}%`} cornerRadius={3}>
                     {processosPorStatus.map((entry, i) => (
-                      <Cell key={i} fill={entry.fill} />
+                      <Cell key={i} fill={['url(#gradConcluido)', 'url(#gradAndamento)', 'url(#gradPendente)'][i]} stroke="none" />
                     ))}
                   </Pie>
-                  <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--card)' }} />
+                  <Tooltip contentStyle={{ borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--card)', boxShadow: '0 8px 32px rgba(0,0,0,0.12)' }} />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
                 </PieChart>
               </ResponsiveContainer>
@@ -224,11 +241,17 @@ export default function Dashboard() {
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={processosPorCausa} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis type="number" tick={{ fontSize: 12 }} stroke="var(--muted-foreground)" />
-                  <YAxis dataKey="causa" type="category" tick={{ fontSize: 11 }} width={90} stroke="var(--muted-foreground)" />
-                  <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--card)' }} />
-                  <Bar dataKey="quantidade" fill="#1e40af" radius={[0, 4, 4, 0]} />
+                  <defs>
+                    <linearGradient id="gradBar" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#1e40af" stopOpacity={0.85} />
+                      <stop offset="100%" stopColor="#3b82f6" stopOpacity={1} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" strokeOpacity={0.5} horizontal={false} />
+                  <XAxis type="number" tick={{ fontSize: 12 }} stroke="var(--muted-foreground)" tickLine={false} axisLine={false} />
+                  <YAxis dataKey="causa" type="category" tick={{ fontSize: 11 }} width={90} stroke="var(--muted-foreground)" tickLine={false} axisLine={false} />
+                  <Tooltip contentStyle={{ borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--card)', boxShadow: '0 8px 32px rgba(0,0,0,0.12)' }} cursor={{ fill: 'var(--accent)', opacity: 0.3 }} />
+                  <Bar dataKey="quantidade" fill="url(#gradBar)" radius={[0, 6, 6, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

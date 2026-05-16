@@ -95,7 +95,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top bar */}
-        <header className="h-14 border-b border-border bg-card flex items-center px-4 gap-3 shrink-0">
+        <header className="h-14 border-b border-border/50 bg-card/80 backdrop-blur-md flex items-center px-4 gap-3 shrink-0">
           <Button
             variant="ghost"
             size="icon"
