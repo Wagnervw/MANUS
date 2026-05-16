@@ -14,6 +14,7 @@ import DetalhesProcesso from "./pages/DetalhesProcesso";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Relatorios = lazy(() => import("./pages/Relatorios"));
+const ControleProcessos = lazy(() => import("./pages/ControleProcessos"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -41,6 +42,7 @@ function Router() {
           <Route path="/novo-processo" component={NovoProcesso} />
           <Route path="/processos" component={Processos} />
           <Route path="/processo/:id" component={DetalhesProcesso} />
+          <Route path="/controle" component={ControleProcessos} />
           <Route path="/relatorios" component={Relatorios} />
           <Route component={NotFound} />
         </Switch>

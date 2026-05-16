@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useTheme } from '@/contexts/ThemeContext';
-import { LayoutDashboard, FilePlus, FileText, ChartBar as BarChart3, Moon, Sun, Menu, X, Shield, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, FilePlus, FileText, ChartBar as BarChart3, ClipboardList, Moon, Sun, Menu, X, Shield, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -11,6 +11,7 @@ const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/novo-processo', label: 'Novo Processo', icon: FilePlus },
   { path: '/processos', label: 'Processos', icon: FileText },
+  { path: '/controle', label: 'Controle', icon: ClipboardList },
   { path: '/relatorios', label: 'Relatórios', icon: BarChart3 },
 ];
 
