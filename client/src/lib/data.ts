@@ -37,7 +37,7 @@ export interface Processo {
   discoVencido: boolean;
 
   // Aba 3 - Checklist Operacional
-  documentosFotosAnalisados: boolean;
+  documentosFotosRecebidos: boolean;
   custosAprovados: boolean;
   historicoStatus: string;
   salvadosLancados: string;
@@ -45,14 +45,28 @@ export interface Processo {
   naoConformidade: boolean;
   naoConformidadeDescricao: string;
   checklistEspecial: string[];
-  ataVistoriaConferida: boolean;
-  planilhaPrejuizoConferida: boolean;
+  tratativasEmailEncerradas: boolean;
+  inventarioSalvados: boolean;
   planilhaPrejuizoJustificativa: string;
   mercadoriasSemInfo: boolean;
   limpezaPistaSemTratativas: boolean;
   periciaSindicante: boolean;
   alteracaoReserva: boolean;
-  vistoriaLonaAssoalho: 'sim' | 'nao' | 'na';
+  lonaVeiculoInspecionados: boolean;
+  furosNaLona: boolean;
+  todasLonasInspecionadas: boolean;
+  acionamentoSindicancia: boolean;
+  documentosAssinados: boolean;
+  documentosAssinadosJustificativa: string;
+  mercadoriaNovaOuUsada: string;
+  identificacaoAnoModelo: boolean;
+  fotosEtiquetaIdentificacao: boolean;
+  fotosOdometro: boolean;
+  orcamentoReparo: boolean;
+  custosLancados: boolean;
+  custosUltrapassaramAutonomia: string;
+  seguradoraNotificada: boolean;
+  informacoesComplementaresLancadas: boolean;
 
   // Aba 4 - Prejuízo / Memória de Cálculo
   prejuizoApurado: boolean;
@@ -61,13 +75,11 @@ export interface Processo {
   totalRecebido: number;
   totalRecusado: number;
   salvadosValor: number;
-  faltaSaque: number;
+  dispersaoSaque: number;
 
   // Aba 5 - Finalizar Central
   modeloFinalizarCentral: string;
   causaEvento: string;
-  declaracaoMotorista: string;
-  boAcidente: string;
   localEvento: string;
   discoTacografo: string;
   parecerVelocidade: string;
@@ -80,6 +92,8 @@ export interface Processo {
   situacaoVeiculo: string;
   condicoesMercadoria: string;
   destinacaoMercadoria: string;
+  relatoMotorista: string;
+  resumoAtendimento: string;
   descricaoAtendimento: string;
   observacaoAtendimento: string;
   documentosPendentes: string[];
@@ -268,25 +282,31 @@ export const PARECERES_VELOCIDADE = [
 export const ACIONAMENTO_OPTIONS = ['Realizado', 'Pendente', 'N/A'];
 
 export const SITUACAO_VEICULO_OPTIONS = [
-  'Liberado',
-  'Retido',
-  'Guinchado',
-  'Pátio',
-  'Perda total',
+  'No local do evento',
+  'Pátio do Guincho',
+  'Pátio da PRF',
+  'Sem danos / Liberado Perda Total'
 ];
 
 export const CONDICOES_MERCADORIA_OPTIONS = [
-  'Intacta',
-  'Parcialmente danificada',
-  'Totalmente danificada',
-  'Sem mercadoria',
+  'Perda Total',
+  'Saque Total',
+  'Dispersa no Local',
+  'Sem condições de Resgate',
+  'Parcialmente Avariada'
 ];
 
 export const DESTINACAO_MERCADORIA_OPTIONS = [
-  'Devolvida',
-  'Armazenada',
-  'Descartada',
-  'N/A',
+  'Seguiu Destino',
+  'Retornou a Origem',
+  'Base da Transportadora',
+  'Base do Segurado',
+  'Salvados no Local do evento',
+  'Salvados Armazenado',
+  'Operação de Resgate',
+  'Saque Total',
+  'Perda Total',
+  'Limpeza de Pista'
 ];
 
 export const DESCRICOES_ATENDIMENTO = [
@@ -453,7 +473,7 @@ function criarProcessoDemo(
     velocidadeRegistrada: '61 a 80 km/h',
     velocidadePermitida: '80 km/h',
     discoVencido: false,
-    documentosFotosAnalisados: concluido,
+    documentosFotosRecebidos: concluido,
     custosAprovados: concluido,
     historicoStatus: concluido ? 'Completo' : 'Incompleto',
     salvadosLancados: concluido ? 'Venda' : 'N/A',
@@ -461,25 +481,37 @@ function criarProcessoDemo(
     naoConformidade: false,
     naoConformidadeDescricao: '',
     checklistEspecial: [],
-    ataVistoriaConferida: concluido,
-    planilhaPrejuizoConferida: concluido,
+    tratativasEmailEncerradas: concluido,
+    inventarioSalvados: concluido,
     planilhaPrejuizoJustificativa: '',
     mercadoriasSemInfo: false,
     limpezaPistaSemTratativas: false,
     periciaSindicante: false,
     alteracaoReserva: false,
-    vistoriaLonaAssoalho: 'na',
+    lonaVeiculoInspecionados: false,
+    furosNaLona: false,
+    todasLonasInspecionadas: false,
+    acionamentoSindicancia: false,
+    documentosAssinados: concluido,
+    documentosAssinadosJustificativa: '',
+    mercadoriaNovaOuUsada: '',
+    identificacaoAnoModelo: false,
+    fotosEtiquetaIdentificacao: false,
+    fotosOdometro: false,
+    orcamentoReparo: false,
+    custosLancados: concluido,
+    custosUltrapassaramAutonomia: '',
+    seguradoraNotificada: false,
+    informacoesComplementaresLancadas: false,
     prejuizoApurado: concluido,
     motivoPrejuizoNaoApurado: '',
     totalEmbarcado: concluido ? [85000, 120000, 45000, 200000, 67000, 150000][parseInt(id) % 6] : 0,
     totalRecebido: concluido ? [78000, 105000, 40000, 180000, 60000, 135000][parseInt(id) % 6] : 0,
     totalRecusado: concluido ? [2000, 5000, 1500, 8000, 3000, 4000][parseInt(id) % 6] : 0,
     salvadosValor: concluido ? [3500, 7000, 2500, 10000, 2800, 8000][parseInt(id) % 6] : 0,
-    faltaSaque: concluido ? [1500, 3000, 1000, 2000, 1200, 3000][parseInt(id) % 6] : 0,
+    dispersaoSaque: concluido ? [1500, 3000, 1000, 2000, 1200, 3000][parseInt(id) % 6] : 0,
     modeloFinalizarCentral: causa.includes('Colisão') ? 'Modelo padrão - Colisão' : 'Modelo padrão - Tombamento',
     causaEvento: causa,
-    declaracaoMotorista: concluido ? 'Recebida' : 'Não recebida',
-    boAcidente: concluido ? 'Recebido' : 'Pendente',
     localEvento: local,
     discoTacografo: concluido ? 'Analisado' : 'Pendente',
     parecerVelocidade: concluido ? 'Velocidade compatível com a via' : '',
@@ -487,9 +519,11 @@ function criarProcessoDemo(
     realizadoPor: operador,
     horarioAcionamento: '08:30',
     atendimentoInLoco: true,
-    situacaoVeiculo: concluido ? 'Liberado' : 'Retido',
-    condicoesMercadoria: 'Parcialmente danificada',
-    destinacaoMercadoria: concluido ? 'Devolvida' : 'Armazenada',
+    situacaoVeiculo: concluido ? 'Sem danos / Liberado Perda Total' : 'No local do evento',
+    condicoesMercadoria: 'Parcialmente Avariada',
+    destinacaoMercadoria: concluido ? 'Seguiu Destino' : 'Salvados Armazenado',
+    relatoMotorista: concluido ? 'Motorista relatou colisão frontal.' : '',
+    resumoAtendimento: concluido ? 'Atendimento no local sem imprevistos.' : '',
     descricaoAtendimento: 'Atendimento padrão no local',
     observacaoAtendimento: '',
     documentosPendentes: concluido ? [] : ['Boletim de ocorrência', 'Disco do tacógrafo'],
