@@ -18,14 +18,9 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/
 import { cn } from '@/lib/utils';
 import {
   MEMBROS_CELULA,
-  ATENDIMENTO_VISTORIA_ITEMS,
   MOTIVOS_TACOGRAFO_NAO_COLETADO,
   FAIXAS_VELOCIDADE,
   VELOCIDADES_PERMITIDAS,
-  HISTORICO_STATUS_OPTIONS,
-  SALVADOS_OPTIONS,
-  CHECKLIST_ESPECIAL_ITEMS,
-  JUSTIFICATIVAS_PLANILHA,
   MOTIVOS_PREJUIZO_NAO_APURADO,
   MODELOS_FINALIZAR_CENTRAL,
   CAUSAS_EVENTO,
@@ -34,14 +29,10 @@ import {
   LOCAIS_EVENTO,
   DISCO_TACOGRAFO_OPTIONS,
   PARECERES_VELOCIDADE,
-  ACIONAMENTO_OPTIONS,
   SITUACAO_VEICULO_OPTIONS,
   CONDICOES_MERCADORIA_OPTIONS,
   DESTINACAO_MERCADORIA_OPTIONS,
-  DESCRICOES_ATENDIMENTO,
   DOCUMENTOS_PENDENTES_ITEMS,
-  VISTORIA_FINAL_OPTIONS,
-  NAO_CONFORMIDADE_DESCRICOES,
   SEGURADORAS,
   type Processo,
 } from '@/lib/data';
@@ -54,7 +45,6 @@ import {
   ClipboardCheck,
   Calculator,
   Flag,
-  Phone,
   FileDown,
   PenLine,
   Plus,
@@ -123,34 +113,12 @@ export default function NovoProcesso() {
   const allSeguradoras = [...SEGURADORAS, ...customSeguradoras];
 
   // ---- Aba 2: Vistoria / Atendimento ----
-  // Atendimento fields
-  const [resumoAcionamento, setResumoAcionamento] = useState('');
   const [resumoAtendimento, setResumoAtendimento] = useState('');
   const [situacaoVeiculoAba2, setSituacaoVeiculoAba2] = useState('');
   const [condicoesMercadoriaAba2, setCondicoesMercadoriaAba2] = useState('');
-  const [providenciasTomadas, setProvidenciasTomadas] = useState('');
   const [destinacaoMercadoriaAba2, setDestinacaoMercadoriaAba2] = useState('');
-  const [limpezaPistaAba2, setLimpezaPistaAba2] = useState(false);
   const [localEventoAba2, setLocalEventoAba2] = useState('');
-  
-  // Vistoria fields
-  const [ataVistoriaAba2, setAtaVistoriaAba2] = useState(false);
-  const [inventarioSalvados, setInventarioSalvados] = useState(false);
-  const [documentosAssinados, setDocumentosAssinados] = useState(false);
-  const [documentosAssinadosJustificativa, setDocumentosAssinadosJustificativa] = useState('');
-  const [mercadoriaNovaOuUsada, setMercadoriaNovaOuUsada] = useState('');
-  const [identificacaoAnoModelo, setIdentificacaoAnoModelo] = useState(false);
-  const [fotosEtiqueta, setFotosEtiqueta] = useState(false);
-  const [fotosOdometro, setFotosOdometro] = useState(false);
-  const [orcamentoReparo, setOrcamentoReparo] = useState(false);
-  const [lonaVeiculoInspecionados, setLonaVeiculoInspecionados] = useState(false);
-  const [furosNaLona, setFurosNaLona] = useState(false);
-  const [todasLonasInspecionadas, setTodasLonasInspecionadas] = useState(false);
-  const [ressalvaRecusa, setRessalvaRecusa] = useState('');
-  const [acionamentoPericia, setAcionamentoPericia] = useState(false);
-  const [acionamentoSindicancia, setAcionamentoSindicancia] = useState(false);
-  
-  // Tacógrafo (mantém na parte inferior)
+
   const [justificativaAtraso, setJustificativaAtraso] = useState('');
   const [atendimentoVistoria, setAtendimentoVistoria] = useState<string[]>([]);
   const [tacografo, setTacografo] = useState<'sim' | 'nao' | 'nao_necessario'>('nao_necessario');
@@ -158,16 +126,13 @@ export default function NovoProcesso() {
   const [velRegistrada, setVelRegistrada] = useState('');
   const [velPermitida, setVelPermitida] = useState('');
   const [discoVencido, setDiscoVencido] = useState(false);
+  const [vistoriaLonaAssoalho, setVistoriaLonaAssoalho] = useState<'sim' | 'nao' | 'na'>('na');
 
   // ---- Aba 3: Checklist Operacional ----
-  const [docsFotos, setDocsFotos] = useState(false);
+  const [docsFotosAnalisados, setDocsFotosAnalisados] = useState(false);
   const [custosAprovados, setCustosAprovados] = useState(false);
-  const [ataConferida, setAtaConferida] = useState(false);
-  
-  const [custosLancados, setCustosLancados] = useState(false);
-  const [custosUltrapassaram, setCustosUltrapassaram] = useState('');
-  const [seguradoraNotificada, setSeguradoraNotificada] = useState(false);
-  const [infoComplementaresLancadas, setInfoComplementaresLancadas] = useState(false);
+  const [ataVistoriaConferida, setAtaVistoriaConferida] = useState(false);
+  const [planilhaPrejuizoConferida, setPlanilhaPrejuizoConferida] = useState(false);
   const [alteracaoReserva, setAlteracaoReserva] = useState(false);
 
   // ---- Aba 4: Prejuízo ----
@@ -177,26 +142,19 @@ export default function NovoProcesso() {
   const [totalRecebido, setTotalRecebido] = useState<number | ''>('');
   const [totalRecusado, setTotalRecusado] = useState<number | ''>('');
   const [salvadosValor, setSalvadosValor] = useState<number | ''>('');
-  const [dispersaoSaque, setDispersaoSaque] = useState<number | ''>('');
+  const [faltaSaque, setFaltaSaque] = useState<number | ''>('');
 
   // ---- Aba 5: Finalizar Central ----
   const [modelo, setModelo] = useState('');
+  const [declaracaoMotorista, setDeclaracaoMotorista] = useState('');
   const [bo, setBo] = useState('');
   const [discoTacografo, setDiscoTacografo] = useState('');
   const [parecer, setParecer] = useState('');
 
   // ---- Aba 6: Acionamento ----
-  const [acionamento, setAcionamento] = useState('');
-  const [realizadoPor, setRealizadoPor] = useState('');
-  const [horario, setHorario] = useState('');
-  const [atendimentoInLoco, setAtendimentoInLoco] = useState(false);
-  const [situacaoVeiculo, setSituacaoVeiculo] = useState('');
-  const [condicoesMerc, setCondicoesMerc] = useState('');
-  const [destinacaoMerc, setDestinacaoMerc] = useState('');
   const [descricaoAtend, setDescricaoAtend] = useState('');
   const [obsAtend, setObsAtend] = useState('');
   const [docsPendentes, setDocsPendentes] = useState<string[]>([]);
-  const [vistoriaFinal, setVistoriaFinal] = useState('');
 
   const toggleList = (list: string[], setList: (v: string[]) => void, item: string) => {
     setList(list.includes(item) ? list.filter(i => i !== item) : [...list, item]);
@@ -207,183 +165,98 @@ export default function NovoProcesso() {
     const rec = Number(totalRecebido) || 0;
     const rec2 = Number(totalRecusado) || 0;
     const salv = Number(salvadosValor) || 0;
-    return emb - rec - rec2 - salv;
-  }, [totalEmbarcado, totalRecebido, totalRecusado, salvadosValor]);
+    const falta = Number(faltaSaque) || 0;
+    return emb - rec - rec2 - salv + falta;
+  }, [totalEmbarcado, totalRecebido, totalRecusado, salvadosValor, faltaSaque]);
 
   const temAtraso = useMemo(() => {
     if (!dataEncVistoria || !dataEncFinalizar) return false;
     return new Date(dataEncFinalizar) > new Date(dataEncVistoria);
   }, [dataEncVistoria, dataEncFinalizar]);
 
+  function buildProcessoData(): Omit<Processo, 'id' | 'historico'> {
+    return {
+      numero, operador, segurado, seguradora, dataAbertura, status: 'Em andamento',
+      dataEncerramentoVistoriador: dataEncVistoria,
+      dataEncerramentoFinalizarCentral: dataEncFinalizar,
+      justificativaAtraso: temAtraso ? justificativaAtraso : '',
+      atendimentoVistoria,
+      tacografoColetado: tacografo,
+      motivoTacografoNaoColetado: tacografo === 'nao' ? motivoTacografo : '',
+      velocidadeRegistrada: velRegistrada,
+      velocidadePermitida: velPermitida,
+      discoVencido,
+      documentosFotosAnalisados: docsFotosAnalisados,
+      custosAprovados,
+      historicoStatus: '',
+      salvadosLancados: '',
+      vistoriadorEncerrado: custosAprovados,
+      naoConformidade: false,
+      naoConformidadeDescricao: '',
+      checklistEspecial: [],
+      ataVistoriaConferida,
+      planilhaPrejuizoConferida,
+      planilhaPrejuizoJustificativa: '',
+      mercadoriasSemInfo: false,
+      limpezaPistaSemTratativas: false,
+      periciaSindicante: false,
+      alteracaoReserva,
+      vistoriaLonaAssoalho,
+      prejuizoApurado,
+      motivoPrejuizoNaoApurado: !prejuizoApurado ? motivoPrejuizo : '',
+      totalEmbarcado: Number(totalEmbarcado) || 0,
+      totalRecebido: Number(totalRecebido) || 0,
+      totalRecusado: Number(totalRecusado) || 0,
+      salvadosValor: Number(salvadosValor) || 0,
+      faltaSaque: Number(faltaSaque) || 0,
+      modeloFinalizarCentral: modelo,
+      causaEvento: causa,
+      declaracaoMotorista,
+      boAcidente: bo,
+      localEvento: localEventoAba2,
+      discoTacografo,
+      parecerVelocidade: parecer,
+      acionamentoComunicado: 'Realizado',
+      realizadoPor: operador,
+      horarioAcionamento: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      atendimentoInLoco: true,
+      situacaoVeiculo: situacaoVeiculoAba2,
+      condicoesMercadoria: condicoesMercadoriaAba2,
+      destinacaoMercadoria: destinacaoMercadoriaAba2,
+      descricaoAtendimento: descricaoAtend || resumoAtendimento,
+      observacaoAtendimento: obsAtend,
+      documentosPendentes: docsPendentes,
+      vistoriaFinal: 'Pendente',
+    };
+  }
+
   const handleSubmit = () => {
     if (!numero || !operador) {
       toast.error('Preencha o número do processo e selecione o operador');
       return;
     }
-    const processo: Omit<Processo, 'id' | 'historico'> = {
-      numero, operador, segurado, seguradora, dataAbertura, status: 'Em andamento',
-      dataEncerramentoVistoriador: dataEncVistoria,
-      dataEncerramentoFinalizarCentral: dataEncFinalizar,
-      justificativaAtraso: temAtraso ? justificativaAtraso : '',
-      atendimentoVistoria,
-      tacografoColetado: tacografo,
-      motivoTacografoNaoColetado: tacografo === 'nao' ? motivoTacografo : '',
-      velocidadeRegistrada: velRegistrada,
-      velocidadePermitida: velPermitida,
-      discoVencido,
-      documentosFotosRecebidos: docsFotos,
-      custosAprovados,
-      vistoriadorEncerrado: custosAprovados,
-      tratativasEmailEncerradas: ataConferida,
-      historicoStatus: '',
-      salvadosLancados: '',
-      naoConformidade: false,
-      naoConformidadeDescricao: '',
-      checklistEspecial: [],
-      inventarioSalvados,
-      planilhaPrejuizoJustificativa: '',
-      mercadoriasSemInfo: false,
-      limpezaPistaSemTratativas: false,
-      periciaSindicante: false,
-      alteracaoReserva,
-      lonaVeiculoInspecionados,
-      furosNaLona,
-      todasLonasInspecionadas,
-      acionamentoSindicancia,
-      documentosAssinados,
-      documentosAssinadosJustificativa: !documentosAssinados ? documentosAssinadosJustificativa : '',
-      mercadoriaNovaOuUsada,
-      identificacaoAnoModelo,
-      fotosEtiquetaIdentificacao: fotosEtiqueta,
-      fotosOdometro,
-      orcamentoReparo,
-      custosLancados,
-      custosUltrapassaramAutonomia: custosUltrapassaram,
-      seguradoraNotificada: custosUltrapassaram === 'sim' ? seguradoraNotificada : false,
-      informacoesComplementaresLancadas: infoComplementaresLancadas,
-      prejuizoApurado,
-      motivoPrejuizoNaoApurado: !prejuizoApurado ? motivoPrejuizo : '',
-      totalEmbarcado: Number(totalEmbarcado) || 0,
-      totalRecebido: Number(totalRecebido) || 0,
-      totalRecusado: Number(totalRecusado) || 0,
-      salvadosValor: Number(salvadosValor) || 0,
-      dispersaoSaque: Number(dispersaoSaque) || 0,
-      modeloFinalizarCentral: modelo,
-      causaEvento: causa,
-      relatoMotorista: resumoAcionamento,
-      resumoAtendimento,
-      localEvento: localEventoAba2,
-      discoTacografo,
-      parecerVelocidade: parecer,
-      acionamentoComunicado: acionamento,
-      realizadoPor,
-      horarioAcionamento: horario,
-      atendimentoInLoco,
-      situacaoVeiculo,
-      condicoesMercadoria: condicoesMerc,
-      destinacaoMercadoria: destinacaoMerc,
-      descricaoAtendimento: descricaoAtend,
-      observacaoAtendimento: obsAtend,
-      documentosPendentes: docsPendentes,
-      vistoriaFinal,
-    };
-    
-    const novoProcesso = addProcesso(processo);
     setShowAssinaturaDialog(true);
   };
 
-  const handleAssinatura = () => {
+  const handleAssinatura = async () => {
     if (!assinatura.trim()) {
       toast.error('Digite sua assinatura digital');
       return;
     }
-    
-    const processo = addProcesso({
-      numero, operador, segurado, seguradora, dataAbertura, status: 'Em andamento',
-      dataEncerramentoVistoriador: dataEncVistoria,
-      dataEncerramentoFinalizarCentral: dataEncFinalizar,
-      justificativaAtraso: temAtraso ? justificativaAtraso : '',
-      atendimentoVistoria,
-      tacografoColetado: tacografo,
-      motivoTacografoNaoColetado: tacografo === 'nao' ? motivoTacografo : '',
-      velocidadeRegistrada: velRegistrada,
-      velocidadePermitida: velPermitida,
-      discoVencido,
-      documentosFotosRecebidos: docsFotos,
-      custosAprovados,
-      vistoriadorEncerrado: custosAprovados,
-      tratativasEmailEncerradas: ataConferida,
-      historicoStatus: '',
-      salvadosLancados: '',
-      naoConformidade: false,
-      naoConformidadeDescricao: '',
-      checklistEspecial: [],
-      inventarioSalvados,
-      planilhaPrejuizoJustificativa: '',
-      mercadoriasSemInfo: false,
-      limpezaPistaSemTratativas: false,
-      periciaSindicante: false,
-      alteracaoReserva,
-      lonaVeiculoInspecionados,
-      furosNaLona,
-      todasLonasInspecionadas,
-      acionamentoSindicancia,
-      documentosAssinados,
-      documentosAssinadosJustificativa: !documentosAssinados ? documentosAssinadosJustificativa : '',
-      mercadoriaNovaOuUsada,
-      identificacaoAnoModelo,
-      fotosEtiquetaIdentificacao: fotosEtiqueta,
-      fotosOdometro,
-      orcamentoReparo,
-      custosLancados,
-      custosUltrapassaramAutonomia: custosUltrapassaram,
-      seguradoraNotificada: custosUltrapassaram === 'sim' ? seguradoraNotificada : false,
-      informacoesComplementaresLancadas: infoComplementaresLancadas,
-      prejuizoApurado,
-      motivoPrejuizoNaoApurado: !prejuizoApurado ? motivoPrejuizo : '',
-      totalEmbarcado: Number(totalEmbarcado) || 0,
-      totalRecebido: Number(totalRecebido) || 0,
-      totalRecusado: Number(totalRecusado) || 0,
-      salvadosValor: Number(salvadosValor) || 0,
-      dispersaoSaque: Number(dispersaoSaque) || 0,
-      modeloFinalizarCentral: modelo,
-      causaEvento: causa,
-      relatoMotorista: resumoAcionamento,
-      resumoAtendimento,
-      localEvento: localEventoAba2,
-      discoTacografo,
-      parecerVelocidade: parecer,
-      acionamentoComunicado: acionamento,
-      realizadoPor,
-      horarioAcionamento: horario,
-      atendimentoInLoco,
-      situacaoVeiculo,
-      condicoesMercadoria: condicoesMerc,
-      destinacaoMercadoria: destinacaoMerc,
-      descricaoAtendimento: descricaoAtend,
-      observacaoAtendimento: obsAtend,
-      documentosPendentes: docsPendentes,
-      vistoriaFinal,
-    });
 
-    // Gerar PDF com assinatura
+    const processo = await addProcesso(buildProcessoData());
     generateProcessoReport(processo, assinatura);
-    
+
     toast.success('Processo criado e relatório gerado com sucesso!');
     setShowAssinaturaDialog(false);
     navigate('/processos');
-  };
-
-  const canAdvance = () => {
-    if (step === 1) return !!numero && !!operador;
-    return true;
   };
 
   return (
     <div className="max-w-4xl mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-foreground">Novo Processo</h1>
-        <p className="text-sm text-muted-foreground mt-1">Preencha as informações em etapas — selecione as opções, sem necessidade de digitar</p>
+        <p className="text-sm text-muted-foreground mt-1">Preencha as informações em etapas</p>
       </div>
 
       {/* Stepper */}
@@ -392,7 +265,7 @@ export default function NovoProcesso() {
           <div className="absolute top-5 left-0 right-0 h-0.5 bg-border" />
           <div
             className="absolute top-5 left-0 h-0.5 bg-primary transition-all duration-500"
-            style={{ width: `${((step - 1) / (STEPS.length - 1)) * 100}%`, transitionTimingFunction: 'var(--ease-out-expo)' }}
+            style={{ width: `${((step - 1) / (STEPS.length - 1)) * 100}%` }}
           />
           {STEPS.map((s) => {
             const done = step > s.id;
@@ -500,19 +373,14 @@ export default function NovoProcesso() {
           {/* ============ ABA 2: VISTORIA ============ */}
           {step === 2 && (
             <>
-
               <SectionTitle>Atendimento e Vistoria</SectionTitle>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Painel Atendimento */}
                 <div className="border border-border rounded-lg">
                   <Accordion type="single" collapsible>
                     <AccordionItem value="atendimento">
-                      <AccordionTrigger className="px-4">📋 Atendimento</AccordionTrigger>
+                      <AccordionTrigger className="px-4">Atendimento</AccordionTrigger>
                       <AccordionContent className="px-4 space-y-4">
-                        <div className="space-y-2">
-                          <Label>Relato do Motorista</Label>
-                          <Textarea placeholder="Descreva o relato..." value={resumoAcionamento} onChange={e => setResumoAcionamento(e.target.value)} rows={2} />
-                        </div>
                         <div className="space-y-2">
                           <Label>Situação do Veículo</Label>
                           <Select value={situacaoVeiculoAba2} onValueChange={setSituacaoVeiculoAba2}>
@@ -532,10 +400,6 @@ export default function NovoProcesso() {
                           <Textarea placeholder="Descreva o resumo do atendimento..." value={resumoAtendimento} onChange={e => setResumoAtendimento(e.target.value)} rows={3} />
                         </div>
                         <div className="space-y-2">
-                          <Label>Providências Tomadas</Label>
-                          <Textarea placeholder="Descreva as providências..." value={providenciasTomadas} onChange={e => setProvidenciasTomadas(e.target.value)} rows={2} />
-                        </div>
-                        <div className="space-y-2">
                           <Label>Destinação da Mercadoria</Label>
                           <Select value={destinacaoMercadoriaAba2} onValueChange={setDestinacaoMercadoriaAba2}>
                             <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
@@ -543,11 +407,12 @@ export default function NovoProcesso() {
                           </Select>
                         </div>
 
-                        <ToggleRow label="Limpeza de Pista" checked={limpezaPistaAba2} onChange={setLimpezaPistaAba2} id="limpeza-pista-aba2" />
-                        
                         <div className="space-y-2">
                           <Label>Local do Evento</Label>
-                          <Textarea placeholder="Descreva o local onde ocorreu o evento..." value={localEventoAba2} onChange={e => setLocalEventoAba2(e.target.value)} rows={2} />
+                          <Select value={localEventoAba2} onValueChange={setLocalEventoAba2}>
+                            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                            <SelectContent>{LOCAIS_EVENTO.map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}</SelectContent>
+                          </Select>
                         </div>
 
                         <div className="mt-6">
@@ -601,138 +466,43 @@ export default function NovoProcesso() {
                     </AccordionItem>
                   </Accordion>
                 </div>
-                
+
                 {/* Painel Vistoria */}
                 <div className="border border-border rounded-lg">
                   <Accordion type="single" collapsible>
                     <AccordionItem value="vistoria">
-                      <AccordionTrigger className="px-4">🔍 Vistoria</AccordionTrigger>
+                      <AccordionTrigger className="px-4">Vistoria</AccordionTrigger>
                       <AccordionContent className="px-4 space-y-4">
-                        <ToggleRow label="Ata de Vistoria" checked={ataVistoriaAba2} onChange={setAtaVistoriaAba2} id="ata-vistoria-aba2" />
-                        <ToggleRow label="Inventário de Salvados" checked={inventarioSalvados} onChange={setInventarioSalvados} id="inventario-salvados-aba2" />
-                        <ToggleRow
-                          label="Documentos acima foram assinados?"
-                          checked={documentosAssinados}
-                          onChange={setDocumentosAssinados}
-                          id="documentos-assinados"
-                        />
-                        {!documentosAssinados && (
-                          <div className="space-y-2">
-                            <Label>Justificativa</Label>
-                            <Textarea
-                              placeholder="Justifique por que os documentos não foram assinados..."
-                              value={documentosAssinadosJustificativa}
-                              onChange={e => setDocumentosAssinadosJustificativa(e.target.value)}
-                              rows={2}
-                            />
+                        <SectionTitle>Vistoria Lona/Assoalho</SectionTitle>
+                        <RadioGroup value={vistoriaLonaAssoalho} onValueChange={(v: any) => setVistoriaLonaAssoalho(v)}>
+                          <div className="flex items-center space-x-2 p-3 rounded-lg border border-border">
+                            <RadioGroupItem value="sim" id="lona-sim" />
+                            <Label htmlFor="lona-sim" className="flex-1 cursor-pointer">Sim</Label>
                           </div>
-                        )}
-
-                        <SectionTitle>Vistoria Equipamentos</SectionTitle>
-                        <div className="space-y-2">
-                          <Label>Mercadoria Nova ou Usada</Label>
-                          <RadioGroup value={mercadoriaNovaOuUsada} onValueChange={setMercadoriaNovaOuUsada}>
-                            <div className="flex items-center space-x-2 p-3 rounded-lg border border-border">
-                              <RadioGroupItem value="nova" id="merc-nova" />
-                              <Label htmlFor="merc-nova" className="flex-1 cursor-pointer">Nova</Label>
-                            </div>
-                            <div className="flex items-center space-x-2 p-3 rounded-lg border border-border">
-                              <RadioGroupItem value="usada" id="merc-usada" />
-                              <Label htmlFor="merc-usada" className="flex-1 cursor-pointer">Usada</Label>
-                            </div>
-                          </RadioGroup>
-                        </div>
-                        <ToggleRow label="Identificação do Ano e Modelo" checked={identificacaoAnoModelo} onChange={setIdentificacaoAnoModelo} id="id-ano-modelo" />
-                        <ToggleRow label="Fotos da Etiqueta de Identificação" checked={fotosEtiqueta} onChange={setFotosEtiqueta} id="fotos-etiqueta" />
-                        <ToggleRow label="Fotos do Odômetro" checked={fotosOdometro} onChange={setFotosOdometro} id="fotos-odometro" />
-                        <ToggleRow label="Orçamento de Reparo" checked={orcamentoReparo} onChange={setOrcamentoReparo} id="orcamento-reparo" />
-
-                        <SectionTitle>Vistoria na Lona e Veículo</SectionTitle>
-                        <ToggleRow label="Lona e Veículo Inspecionados" checked={lonaVeiculoInspecionados} onChange={setLonaVeiculoInspecionados} id="lona-inspecionada" />
-                        <ToggleRow label="Furos na Lona" checked={furosNaLona} onChange={setFurosNaLona} id="furos-lona" />
-                        <ToggleRow label="Todas as Lonas foram Inspecionadas" checked={todasLonasInspecionadas} onChange={setTodasLonasInspecionadas} id="todas-lonas" />
-
-                        <div className="space-y-2 mt-4">
-                          <Label>Ressalva em Casos de Recusa</Label>
-                          <Textarea placeholder="Descreva a ressalva..." value={ressalvaRecusa} onChange={e => setRessalvaRecusa(e.target.value)} rows={2} />
-                        </div>
-                        <ToggleRow label="Acionamento de Perícia" checked={acionamentoPericia} onChange={setAcionamentoPericia} id="acionamento-pericia-aba2" />
-                        <ToggleRow
-                          label="Acionamento Sindicância"
-                          checked={acionamentoSindicancia}
-                          onChange={setAcionamentoSindicancia}
-                          id="acionamento-sindicancia"
-                        />
+                          <div className="flex items-center space-x-2 p-3 rounded-lg border border-border">
+                            <RadioGroupItem value="nao" id="lona-nao" />
+                            <Label htmlFor="lona-nao" className="flex-1 cursor-pointer">Não</Label>
+                          </div>
+                          <div className="flex items-center space-x-2 p-3 rounded-lg border border-border">
+                            <RadioGroupItem value="na" id="lona-na" />
+                            <Label htmlFor="lona-na" className="flex-1 cursor-pointer">N/A</Label>
+                          </div>
+                        </RadioGroup>
                       </AccordionContent>
                     </AccordionItem>
                   </Accordion>
                 </div>
               </div>
-
-
             </>
           )}
 
           {/* ============ ABA 3: CHECKLIST ============ */}
           {step === 3 && (
             <>
-              <ToggleRow label="Documentos / Fotos Recebidos" checked={docsFotos} onChange={setDocsFotos} id="docs-fotos" />
-              <ToggleRow label="Vistoriador Encerrado" checked={custosAprovados} onChange={setCustosAprovados} id="custos" />
-              <ToggleRow label="Tratativas E-mail Encerradas" checked={ataConferida} onChange={setAtaConferida} id="ata" />
-
-              <Separator />
-              <SectionTitle>Custos</SectionTitle>
-
-              <ToggleRow label="Custos Lançados" checked={custosLancados} onChange={setCustosLancados} id="custos-lancados" />
-
-              <div className="space-y-3">
-                <Label className="font-medium">Custos Ultrapassaram nossa Autonomia?</Label>
-                
-                <div
-                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                    custosUltrapassaram === 'sim' ? 'border-primary bg-primary/5' : 'border-border'
-                  }`}
-                  onClick={() => setCustosUltrapassaram('sim')}
-                >
-                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                    custosUltrapassaram === 'sim' ? 'border-primary' : 'border-muted-foreground'
-                  }`}>
-                    {custosUltrapassaram === 'sim' && <div className="w-2 h-2 rounded-full bg-primary" />}
-                  </div>
-                  <span className="text-sm font-medium">Sim</span>
-                </div>
-
-                {custosUltrapassaram === 'sim' && (
-                  <ToggleRow
-                    label="Seguradora Notificada"
-                    checked={seguradoraNotificada}
-                    onChange={setSeguradoraNotificada}
-                    id="seguradora-notificada"
-                  />
-                )}
-
-                <div
-                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                    custosUltrapassaram === 'nao' ? 'border-primary bg-primary/5' : 'border-border'
-                  }`}
-                  onClick={() => setCustosUltrapassaram('nao')}
-                >
-                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                    custosUltrapassaram === 'nao' ? 'border-primary' : 'border-muted-foreground'
-                  }`}>
-                    {custosUltrapassaram === 'nao' && <div className="w-2 h-2 rounded-full bg-primary" />}
-                  </div>
-                  <span className="text-sm font-medium">Não</span>
-                </div>
-              </div>
-
-              <ToggleRow
-                label="Informações Complementares Lançadas"
-                checked={infoComplementaresLancadas}
-                onChange={setInfoComplementaresLancadas}
-                id="info-complementares"
-              />
-
+              <ToggleRow label="Documentos / Fotos Analisados" checked={docsFotosAnalisados} onChange={setDocsFotosAnalisados} id="docs-fotos" />
+              <ToggleRow label="Custos Aprovados" checked={custosAprovados} onChange={setCustosAprovados} id="custos" />
+              <ToggleRow label="Ata de Vistoria Conferida" checked={ataVistoriaConferida} onChange={setAtaVistoriaConferida} id="ata" />
+              <ToggleRow label="Planilha de Prejuízo Conferida" checked={planilhaPrejuizoConferida} onChange={setPlanilhaPrejuizoConferida} id="planilha" />
             </>
           )}
 
@@ -740,7 +510,7 @@ export default function NovoProcesso() {
           {step === 4 && (
             <>
               <ToggleRow label="Prejuízo Apurado" checked={prejuizoApurado} onChange={setPrejuizoApurado} id="prejuizo" />
-              
+
               {!prejuizoApurado && (
                 <div className="space-y-2">
                   <Label>Motivo *</Label>
@@ -773,8 +543,8 @@ export default function NovoProcesso() {
                       <Input type="number" value={salvadosValor} onChange={e => setSalvadosValor(e.target.value === '' ? '' : Number(e.target.value))} />
                     </div>
                     <div className="space-y-2">
-                      <Label>Dispersão / Saque (R$)</Label>
-                      <Input type="number" value={dispersaoSaque} onChange={e => setDispersaoSaque(e.target.value === '' ? '' : Number(e.target.value))} />
+                      <Label>Falta / Saque (R$)</Label>
+                      <Input type="number" value={faltaSaque} onChange={e => setFaltaSaque(e.target.value === '' ? '' : Number(e.target.value))} />
                     </div>
                   </div>
 
@@ -813,6 +583,34 @@ export default function NovoProcesso() {
                     <SelectContent>{MODELOS_FINALIZAR_CENTRAL.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
+                <div className="space-y-2">
+                  <Label>Declaração do Motorista</Label>
+                  <Select value={declaracaoMotorista} onValueChange={setDeclaracaoMotorista}>
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>{DECLARACAO_OPTIONS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>BO do Acidente</Label>
+                  <Select value={bo} onValueChange={setBo}>
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>{BO_OPTIONS.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Disco Tacógrafo</Label>
+                  <Select value={discoTacografo} onValueChange={setDiscoTacografo}>
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>{DISCO_TACOGRAFO_OPTIONS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Parecer Velocidade</Label>
+                  <Select value={parecer} onValueChange={setParecer}>
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>{PARECERES_VELOCIDADE.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <Separator />
@@ -830,10 +628,6 @@ export default function NovoProcesso() {
               </div>
             </>
           )}
-
-
-
-
 
           {/* Navigation */}
           <div className="flex items-center justify-between pt-4 border-t border-border">
