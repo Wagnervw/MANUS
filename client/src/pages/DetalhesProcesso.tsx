@@ -8,11 +8,80 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ArrowLeft, FileText, Search, ClipboardCheck, Calculator, Flag, Phone, CircleCheck as CheckCircle2, Circle as XCircle, CircleMinus as MinusCircle, FileDown, Copy, CircleAlert as AlertCircle, Clock } from 'lucide-react';
+
+function DetalhesProcessoSkeleton() {
+  return (
+    <div className="max-w-6xl mx-auto space-y-6">
+      {/* Header skeleton */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-4">
+          <Skeleton className="w-10 h-10 rounded-lg" />
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-7 w-40" />
+              <Skeleton className="h-5 w-24 rounded-full" />
+            </div>
+            <Skeleton className="h-4 w-72" />
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Skeleton className="h-9 w-20 rounded-md" />
+          <Skeleton className="h-9 w-24 rounded-md" />
+        </div>
+      </div>
+
+      {/* Tabs skeleton */}
+      <div className="space-y-4">
+        <div className="flex gap-2">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-9 w-24 rounded-md" />
+          ))}
+        </div>
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-5 w-32" />
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="flex items-center justify-between py-2">
+                <Skeleton className="h-4 w-36" />
+                <Skeleton className="h-4 w-28" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Timeline skeleton */}
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-5 w-48" />
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="flex gap-4">
+              <div className="flex flex-col items-center">
+                <Skeleton className="w-3 h-3 rounded-full" />
+                {i < 2 && <Skeleton className="w-0.5 h-12 mt-1" />}
+              </div>
+              <div className="flex-1 space-y-2 pb-4">
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-3 w-60" />
+                <Skeleton className="h-3 w-24" />
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
 
 function InfoRow({ label, value, highlight }: { label: string; value: string | number | boolean | undefined; highlight?: boolean }) {
   const display = typeof value === 'boolean' ? (value ? 'Sim' : 'Não') : (value || '—');
@@ -40,11 +109,15 @@ function ChecklistItem({ label, checked }: { label: string; checked: boolean }) 
 export default function DetalhesProcesso() {
   const { id } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
-  const { getProcesso, duplicarProcesso } = useProcessos();
+  const { getProcesso, duplicarProcesso, loading } = useProcessos();
   const [showDuplicarDialog, setShowDuplicarDialog] = useState(false);
   const [novoNumero, setNovoNumero] = useState('');
 
   const processo = getProcesso(id!);
+
+  if (loading) {
+    return <DetalhesProcessoSkeleton />;
+  }
 
   if (!processo) {
     return (

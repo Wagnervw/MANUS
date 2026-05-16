@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useLocation } from 'wouter';
 import { toast } from 'sonner';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useProcessos } from '@/contexts/SinistrosContext';
 import { generateProcessoReport } from '@/lib/generateReport';
 import { Button } from '@/components/ui/button';
@@ -93,12 +94,55 @@ function CheckItem({ label, checked, onChange }: { label: string; checked: boole
   );
 }
 
+function useCountUp(target: number, duration = 600) {
+  const [display, setDisplay] = useState(target);
+  const rafRef = useRef<number>(0);
+  const startRef = useRef<number | null>(null);
+  const fromRef = useRef(target);
+
+  useEffect(() => {
+    const from = fromRef.current;
+    if (from === target) return;
+    startRef.current = null;
+    cancelAnimationFrame(rafRef.current);
+
+    const animate = (ts: number) => {
+      if (startRef.current === null) startRef.current = ts;
+      const elapsed = ts - startRef.current;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setDisplay(from + (target - from) * eased);
+      if (progress < 1) {
+        rafRef.current = requestAnimationFrame(animate);
+      } else {
+        fromRef.current = target;
+      }
+    };
+    rafRef.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [target, duration]);
+
+  return display;
+}
+
+const stepVariants = {
+  enter: (dir: number) => ({ x: dir > 0 ? 80 : -80, opacity: 0 }),
+  center: { x: 0, opacity: 1 },
+  exit: (dir: number) => ({ x: dir > 0 ? -80 : 80, opacity: 0 }),
+};
+
 export default function NovoProcesso() {
   const [, navigate] = useLocation();
   const { addProcesso } = useProcessos();
   const [step, setStep] = useState(1);
+  const [direction, setDirection] = useState(0);
   const [showAssinaturaDialog, setShowAssinaturaDialog] = useState(false);
   const [assinatura, setAssinatura] = useState('');
+
+  const goToStep = useCallback((target: number) => {
+    setDirection(target > step ? 1 : -1);
+    setStep(target);
+  }, [step]);
 
   // ---- Aba 1: Abertura ----
   const [numero, setNumero] = useState('');
@@ -215,6 +259,40 @@ export default function NovoProcesso() {
     return new Date(dataEncFinalizar) > new Date(dataEncVistoria);
   }, [dataEncVistoria, dataEncFinalizar]);
 
+  const completionPercent = useMemo(() => {
+    let filled = 0;
+    let total = 0;
+    // Step 1 fields
+    total += 4;
+    if (numero) filled++;
+    if (operador) filled++;
+    if (segurado) filled++;
+    if (seguradora) filled++;
+    // Step 2 fields
+    total += 3;
+    if (resumoAcionamento) filled++;
+    if (situacaoVeiculoAba2) filled++;
+    if (condicoesMercadoriaAba2) filled++;
+    // Step 3 fields
+    total += 3;
+    if (docsFotos) filled++;
+    if (custosAprovados) filled++;
+    if (ataConferida) filled++;
+    // Step 4 fields
+    total += 2;
+    if (totalEmbarcado !== '') filled++;
+    if (totalRecebido !== '') filled++;
+    // Step 5 fields
+    total += 1;
+    if (modelo) filled++;
+    // Base step progress (each visited step adds weight)
+    const stepWeight = ((step - 1) / STEPS.length) * 30;
+    const fieldWeight = (filled / total) * 70;
+    return Math.min(Math.round(stepWeight + fieldWeight), 100);
+  }, [numero, operador, segurado, seguradora, resumoAcionamento, situacaoVeiculoAba2, condicoesMercadoriaAba2, docsFotos, custosAprovados, ataConferida, totalEmbarcado, totalRecebido, modelo, step]);
+
+  const animatedMemoria = useCountUp(memoriaCalculo);
+
   const handleSubmit = () => {
     if (!numero || !operador) {
       toast.error('Preencha o número do processo e selecione o operador');
@@ -312,33 +390,54 @@ export default function NovoProcesso() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <div className="mb-6">
+      {/* Sticky progress bar */}
+      <div className="sticky top-0 z-30 -mx-4 md:-mx-6 px-4 md:px-6 pt-2 pb-3 bg-background/80 backdrop-blur-md">
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-xs font-medium text-muted-foreground">Progresso do formulario</span>
+          <span className="text-xs font-bold text-primary">{completionPercent}%</span>
+        </div>
+        <div className="h-1.5 rounded-full bg-border/50 overflow-hidden">
+          <motion.div
+            className="h-full rounded-full bg-gradient-to-r from-blue-600 to-blue-400"
+            initial={false}
+            animate={{ width: `${completionPercent}%` }}
+            transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
+          />
+        </div>
+      </div>
+
+      <div className="mb-6 mt-2">
         <h1 className="text-2xl font-bold text-foreground">Novo Processo</h1>
-        <p className="text-sm text-muted-foreground mt-1">Preencha as informações em etapas — selecione as opções, sem necessidade de digitar</p>
+        <p className="text-sm text-muted-foreground mt-1">Preencha as informacoes em etapas -- selecione as opcoes, sem necessidade de digitar</p>
       </div>
 
       {/* Stepper */}
       <div className="mb-8">
         <div className="flex items-center justify-between relative">
           <div className="absolute top-5 left-0 right-0 h-0.5 bg-border" />
-          <div
-            className="absolute top-5 left-0 h-0.5 bg-primary transition-all duration-500"
-            style={{ width: `${((step - 1) / (STEPS.length - 1)) * 100}%`, transitionTimingFunction: 'var(--ease-out-expo)' }}
+          <motion.div
+            className="absolute top-5 left-0 h-0.5 bg-primary"
+            initial={false}
+            animate={{ width: `${((step - 1) / (STEPS.length - 1)) * 100}%` }}
+            transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
           />
           {STEPS.map((s) => {
             const done = step > s.id;
             const current = step === s.id;
             return (
               <div key={s.id} className="relative flex flex-col items-center z-10">
-                <button
-                  onClick={() => setStep(s.id)}
+                <motion.button
+                  onClick={() => goToStep(s.id)}
                   className={cn(
-                    'w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm transition-all duration-300 cursor-pointer hover:scale-110',
+                    'w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm cursor-pointer',
                     done ? 'bg-primary text-primary-foreground' : current ? 'bg-primary text-primary-foreground ring-4 ring-primary/30' : 'bg-card border border-border text-muted-foreground hover:border-primary/50'
                   )}
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.95 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                 >
                   {done ? <Check className="w-5 h-5" /> : s.id}
-                </button>
+                </motion.button>
                 <span className="text-xs mt-2 font-medium text-center w-16">{s.title}</span>
               </div>
             );
@@ -350,7 +449,18 @@ export default function NovoProcesso() {
         <CardHeader>
           <CardTitle>Etapa {step} de {STEPS.length}: {STEPS[step - 1].title}</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-6 overflow-hidden">
+          <AnimatePresence mode="wait" custom={direction}>
+          <motion.div
+            key={step}
+            custom={direction}
+            variants={stepVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+            className="space-y-6"
+          >
           {/* ============ ABA 1: ABERTURA ============ */}
           {step === 1 && (
             <>
@@ -709,12 +819,16 @@ export default function NovoProcesso() {
                     </div>
                   </div>
 
-                  <div className="p-4 rounded-lg bg-primary/10 border border-primary/30">
-                    <div className="text-sm text-muted-foreground mb-1">Memória de Cálculo</div>
-                    <div className="text-2xl font-bold text-primary">
-                      R$ {memoriaCalculo.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <motion.div
+                    className="p-4 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/30"
+                    layout
+                    transition={{ duration: 0.3 }}
+                  >
+                    <div className="text-sm text-muted-foreground mb-1">Memoria de Calculo</div>
+                    <div className="text-2xl font-bold text-primary tabular-nums tracking-tight">
+                      R$ {animatedMemoria.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
-                  </div>
+                  </motion.div>
 
                   <Separator />
                   <SectionTitle>Ajuste de Reserva</SectionTitle>
@@ -766,15 +880,18 @@ export default function NovoProcesso() {
 
 
 
+          </motion.div>
+          </AnimatePresence>
+
           {/* Navigation */}
           <div className="flex items-center justify-between pt-4 border-t border-border">
-            <Button variant="outline" onClick={() => setStep(s => s - 1)} disabled={step === 1} className="gap-1.5">
+            <Button variant="outline" onClick={() => goToStep(step - 1)} disabled={step === 1} className="gap-1.5">
               <ChevronLeft className="w-4 h-4" /> Anterior
             </Button>
             <span className="text-xs text-muted-foreground">Etapa {step} de {STEPS.length}</span>
             {step < STEPS.length ? (
-              <Button onClick={() => setStep(s => s + 1)} className="gap-1.5">
-                Próximo <ChevronRight className="w-4 h-4" />
+              <Button onClick={() => goToStep(step + 1)} className="gap-1.5">
+                Proximo <ChevronRight className="w-4 h-4" />
               </Button>
             ) : (
               <Button onClick={handleSubmit} className="gap-1.5 bg-emerald-600 hover:bg-emerald-700">
