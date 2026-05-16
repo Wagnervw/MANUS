@@ -46,20 +46,7 @@ import {
   SEGURADORAS,
   type Processo,
 } from '@/lib/data';
-import {
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  FileText,
-  Search,
-  ClipboardCheck,
-  Calculator,
-  Flag,
-  Phone,
-  FileDown,
-  PenLine,
-  Plus,
-} from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, FileText, Search, ClipboardCheck, Calculator, Flag, Phone, FileDown, PenLine, Plus, TriangleAlert as AlertTriangle } from 'lucide-react';
 
 const STEPS = [
   { id: 1, title: 'Abertura', icon: FileText },
@@ -130,6 +117,28 @@ const stepVariants = {
   center: { x: 0, opacity: 1 },
   exit: (dir: number) => ({ x: dir > 0 ? -80 : 80, opacity: 0 }),
 };
+
+const DRAFT_KEY = 'wagner-novo-processo-draft';
+
+function extractMaxSpeed(faixa: string): number | null {
+  if (!faixa || faixa === 'Não registrada' || faixa === 'Não identificada') return null;
+  if (faixa.startsWith('Acima de')) return 121;
+  if (faixa.startsWith('Até')) {
+    const match = faixa.match(/(\d+)/);
+    return match ? parseInt(match[1]) : null;
+  }
+  const rangeMatch = faixa.match(/(\d+)\s*a\s*(\d+)/);
+  if (rangeMatch) return parseInt(rangeMatch[2]);
+  const singleMatch = faixa.match(/^(\d+)/);
+  if (singleMatch) return parseInt(singleMatch[1]);
+  return null;
+}
+
+function extractPermittedSpeed(vel: string): number | null {
+  if (!vel || vel === 'Não identificada') return null;
+  const match = vel.match(/(\d+)/);
+  return match ? parseInt(match[1]) : null;
+}
 
 export default function NovoProcesso() {
   const [, navigate] = useLocation();
@@ -293,6 +302,144 @@ export default function NovoProcesso() {
 
   const animatedMemoria = useCountUp(memoriaCalculo);
 
+  // Smart warning: speed comparison
+  const speedWarning = useMemo(() => {
+    const registered = extractMaxSpeed(velRegistrada);
+    const permitted = extractPermittedSpeed(velPermitida);
+    if (registered === null || permitted === null) return false;
+    return registered > permitted;
+  }, [velRegistrada, velPermitida]);
+
+  // Auto-disable orcamento when vehicle situation is "Perda Total"
+  useEffect(() => {
+    if (situacaoVeiculoAba2.includes('Perda Total') || condicoesMercadoriaAba2 === 'Perda Total') {
+      setOrcamentoReparo(false);
+    }
+  }, [situacaoVeiculoAba2, condicoesMercadoriaAba2]);
+
+  // localStorage auto-save draft
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const draftState = useMemo(() => ({
+    numero, operador, segurado, seguradora, causa, dataEncVistoria, dataEncFinalizar,
+    resumoAcionamento, resumoAtendimento, situacaoVeiculoAba2, condicoesMercadoriaAba2,
+    providenciasTomadas, destinacaoMercadoriaAba2, limpezaPistaAba2, localEventoAba2,
+    ataVistoriaAba2, inventarioSalvados, documentosAssinados, documentosAssinadosJustificativa,
+    mercadoriaNovaOuUsada, identificacaoAnoModelo, fotosEtiqueta, fotosOdometro, orcamentoReparo,
+    lonaVeiculoInspecionados, furosNaLona, todasLonasInspecionadas, ressalvaRecusa,
+    acionamentoPericia, acionamentoSindicancia, justificativaAtraso, atendimentoVistoria,
+    tacografo, motivoTacografo, velRegistrada, velPermitida, discoVencido,
+    docsFotos, custosAprovados, ataConferida, custosLancados, custosUltrapassaram,
+    seguradoraNotificada, infoComplementaresLancadas, alteracaoReserva,
+    prejuizoApurado, motivoPrejuizo, totalEmbarcado, totalRecebido, totalRecusado,
+    salvadosValor, dispersaoSaque, modelo, bo, discoTacografo, parecer,
+    acionamento, realizadoPor, horario, atendimentoInLoco, situacaoVeiculo,
+    condicoesMerc, destinacaoMerc, descricaoAtend, obsAtend, docsPendentes, vistoriaFinal, step,
+  }), [
+    numero, operador, segurado, seguradora, causa, dataEncVistoria, dataEncFinalizar,
+    resumoAcionamento, resumoAtendimento, situacaoVeiculoAba2, condicoesMercadoriaAba2,
+    providenciasTomadas, destinacaoMercadoriaAba2, limpezaPistaAba2, localEventoAba2,
+    ataVistoriaAba2, inventarioSalvados, documentosAssinados, documentosAssinadosJustificativa,
+    mercadoriaNovaOuUsada, identificacaoAnoModelo, fotosEtiqueta, fotosOdometro, orcamentoReparo,
+    lonaVeiculoInspecionados, furosNaLona, todasLonasInspecionadas, ressalvaRecusa,
+    acionamentoPericia, acionamentoSindicancia, justificativaAtraso, atendimentoVistoria,
+    tacografo, motivoTacografo, velRegistrada, velPermitida, discoVencido,
+    docsFotos, custosAprovados, ataConferida, custosLancados, custosUltrapassaram,
+    seguradoraNotificada, infoComplementaresLancadas, alteracaoReserva,
+    prejuizoApurado, motivoPrejuizo, totalEmbarcado, totalRecebido, totalRecusado,
+    salvadosValor, dispersaoSaque, modelo, bo, discoTacografo, parecer,
+    acionamento, realizadoPor, horario, atendimentoInLoco, situacaoVeiculo,
+    condicoesMerc, destinacaoMerc, descricaoAtend, obsAtend, docsPendentes, vistoriaFinal, step,
+  ]);
+
+  useEffect(() => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draftState)); } catch {}
+    }, 500);
+    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
+  }, [draftState]);
+
+  // Restore draft on mount
+  const draftRestored = useRef(false);
+  useEffect(() => {
+    if (draftRestored.current) return;
+    draftRestored.current = true;
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) return;
+      const d = JSON.parse(raw);
+      if (d.numero) setNumero(d.numero);
+      if (d.operador) setOperador(d.operador);
+      if (d.segurado) setSegurado(d.segurado);
+      if (d.seguradora) setSeguradora(d.seguradora);
+      if (d.causa) setCausa(d.causa);
+      if (d.dataEncVistoria) setDataEncVistoria(d.dataEncVistoria);
+      if (d.dataEncFinalizar) setDataEncFinalizar(d.dataEncFinalizar);
+      if (d.resumoAcionamento) setResumoAcionamento(d.resumoAcionamento);
+      if (d.resumoAtendimento) setResumoAtendimento(d.resumoAtendimento);
+      if (d.situacaoVeiculoAba2) setSituacaoVeiculoAba2(d.situacaoVeiculoAba2);
+      if (d.condicoesMercadoriaAba2) setCondicoesMercadoriaAba2(d.condicoesMercadoriaAba2);
+      if (d.providenciasTomadas) setProvidenciasTomadas(d.providenciasTomadas);
+      if (d.destinacaoMercadoriaAba2) setDestinacaoMercadoriaAba2(d.destinacaoMercadoriaAba2);
+      if (d.limpezaPistaAba2 !== undefined) setLimpezaPistaAba2(d.limpezaPistaAba2);
+      if (d.localEventoAba2) setLocalEventoAba2(d.localEventoAba2);
+      if (d.ataVistoriaAba2 !== undefined) setAtaVistoriaAba2(d.ataVistoriaAba2);
+      if (d.inventarioSalvados !== undefined) setInventarioSalvados(d.inventarioSalvados);
+      if (d.documentosAssinados !== undefined) setDocumentosAssinados(d.documentosAssinados);
+      if (d.documentosAssinadosJustificativa) setDocumentosAssinadosJustificativa(d.documentosAssinadosJustificativa);
+      if (d.mercadoriaNovaOuUsada) setMercadoriaNovaOuUsada(d.mercadoriaNovaOuUsada);
+      if (d.identificacaoAnoModelo !== undefined) setIdentificacaoAnoModelo(d.identificacaoAnoModelo);
+      if (d.fotosEtiqueta !== undefined) setFotosEtiqueta(d.fotosEtiqueta);
+      if (d.fotosOdometro !== undefined) setFotosOdometro(d.fotosOdometro);
+      if (d.orcamentoReparo !== undefined) setOrcamentoReparo(d.orcamentoReparo);
+      if (d.lonaVeiculoInspecionados !== undefined) setLonaVeiculoInspecionados(d.lonaVeiculoInspecionados);
+      if (d.furosNaLona !== undefined) setFurosNaLona(d.furosNaLona);
+      if (d.todasLonasInspecionadas !== undefined) setTodasLonasInspecionadas(d.todasLonasInspecionadas);
+      if (d.ressalvaRecusa) setRessalvaRecusa(d.ressalvaRecusa);
+      if (d.acionamentoPericia !== undefined) setAcionamentoPericia(d.acionamentoPericia);
+      if (d.acionamentoSindicancia !== undefined) setAcionamentoSindicancia(d.acionamentoSindicancia);
+      if (d.justificativaAtraso) setJustificativaAtraso(d.justificativaAtraso);
+      if (d.atendimentoVistoria) setAtendimentoVistoria(d.atendimentoVistoria);
+      if (d.tacografo) setTacografo(d.tacografo);
+      if (d.motivoTacografo) setMotivoTacografo(d.motivoTacografo);
+      if (d.velRegistrada) setVelRegistrada(d.velRegistrada);
+      if (d.velPermitida) setVelPermitida(d.velPermitida);
+      if (d.discoVencido !== undefined) setDiscoVencido(d.discoVencido);
+      if (d.docsFotos !== undefined) setDocsFotos(d.docsFotos);
+      if (d.custosAprovados !== undefined) setCustosAprovados(d.custosAprovados);
+      if (d.ataConferida !== undefined) setAtaConferida(d.ataConferida);
+      if (d.custosLancados !== undefined) setCustosLancados(d.custosLancados);
+      if (d.custosUltrapassaram) setCustosUltrapassaram(d.custosUltrapassaram);
+      if (d.seguradoraNotificada !== undefined) setSeguradoraNotificada(d.seguradoraNotificada);
+      if (d.infoComplementaresLancadas !== undefined) setInfoComplementaresLancadas(d.infoComplementaresLancadas);
+      if (d.alteracaoReserva !== undefined) setAlteracaoReserva(d.alteracaoReserva);
+      if (d.prejuizoApurado !== undefined) setPrejuizoApurado(d.prejuizoApurado);
+      if (d.motivoPrejuizo) setMotivoPrejuizo(d.motivoPrejuizo);
+      if (d.totalEmbarcado !== undefined && d.totalEmbarcado !== '') setTotalEmbarcado(d.totalEmbarcado);
+      if (d.totalRecebido !== undefined && d.totalRecebido !== '') setTotalRecebido(d.totalRecebido);
+      if (d.totalRecusado !== undefined && d.totalRecusado !== '') setTotalRecusado(d.totalRecusado);
+      if (d.salvadosValor !== undefined && d.salvadosValor !== '') setSalvadosValor(d.salvadosValor);
+      if (d.dispersaoSaque !== undefined && d.dispersaoSaque !== '') setDispersaoSaque(d.dispersaoSaque);
+      if (d.modelo) setModelo(d.modelo);
+      if (d.bo) setBo(d.bo);
+      if (d.discoTacografo) setDiscoTacografo(d.discoTacografo);
+      if (d.parecer) setParecer(d.parecer);
+      if (d.acionamento) setAcionamento(d.acionamento);
+      if (d.realizadoPor) setRealizadoPor(d.realizadoPor);
+      if (d.horario) setHorario(d.horario);
+      if (d.atendimentoInLoco !== undefined) setAtendimentoInLoco(d.atendimentoInLoco);
+      if (d.situacaoVeiculo) setSituacaoVeiculo(d.situacaoVeiculo);
+      if (d.condicoesMerc) setCondicoesMerc(d.condicoesMerc);
+      if (d.destinacaoMerc) setDestinacaoMerc(d.destinacaoMerc);
+      if (d.descricaoAtend) setDescricaoAtend(d.descricaoAtend);
+      if (d.obsAtend) setObsAtend(d.obsAtend);
+      if (d.docsPendentes) setDocsPendentes(d.docsPendentes);
+      if (d.vistoriaFinal) setVistoriaFinal(d.vistoriaFinal);
+      if (d.step) { setDirection(0); setStep(d.step); }
+      toast.info('Rascunho restaurado automaticamente');
+    } catch {}
+  }, []);
+
   const handleSubmit = () => {
     if (!numero || !operador) {
       toast.error('Preencha o número do processo e selecione o operador');
@@ -375,9 +522,8 @@ export default function NovoProcesso() {
       vistoriaFinal,
     });
 
-    // Gerar PDF com assinatura
     generateProcessoReport(processo, assinatura);
-    
+    try { localStorage.removeItem(DRAFT_KEY); } catch {}
     toast.success('Processo criado e relatório gerado com sucesso!');
     setShowAssinaturaDialog(false);
     navigate('/processos');
@@ -637,6 +783,16 @@ export default function NovoProcesso() {
                               <ToggleRow label="Disco Vencido" checked={discoVencido} onChange={setDiscoVencido} id="disco-vencido" />
                             </div>
                           </div>
+                          {speedWarning && (
+                            <motion.div
+                              initial={{ opacity: 0, y: -8 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="flex items-center gap-2 p-3 mt-3 rounded-lg border border-red-300 bg-red-50 dark:bg-red-950/30 dark:border-red-800"
+                            >
+                              <AlertTriangle className="w-4 h-4 text-red-600 dark:text-red-400 flex-shrink-0" />
+                              <span className="text-sm font-semibold text-red-700 dark:text-red-300">Excesso de velocidade detectado</span>
+                            </motion.div>
+                          )}
                         </div>
                       </AccordionContent>
                     </AccordionItem>
@@ -686,7 +842,17 @@ export default function NovoProcesso() {
                         <ToggleRow label="Identificação do Ano e Modelo" checked={identificacaoAnoModelo} onChange={setIdentificacaoAnoModelo} id="id-ano-modelo" />
                         <ToggleRow label="Fotos da Etiqueta de Identificação" checked={fotosEtiqueta} onChange={setFotosEtiqueta} id="fotos-etiqueta" />
                         <ToggleRow label="Fotos do Odômetro" checked={fotosOdometro} onChange={setFotosOdometro} id="fotos-odometro" />
-                        <ToggleRow label="Orçamento de Reparo" checked={orcamentoReparo} onChange={setOrcamentoReparo} id="orcamento-reparo" />
+                        {(situacaoVeiculoAba2.includes('Perda Total') || condicoesMercadoriaAba2 === 'Perda Total') ? (
+                          <div className="flex items-center justify-between p-3 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
+                            <div className="flex-1">
+                              <Label className="text-sm font-medium text-amber-800 dark:text-amber-300">Orcamento de Reparo</Label>
+                              <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">Desabilitado automaticamente - Perda Total</p>
+                            </div>
+                            <Switch id="orcamento-reparo" checked={false} disabled />
+                          </div>
+                        ) : (
+                          <ToggleRow label="Orçamento de Reparo" checked={orcamentoReparo} onChange={setOrcamentoReparo} id="orcamento-reparo" />
+                        )}
 
                         <SectionTitle>Vistoria na Lona e Veículo</SectionTitle>
                         <ToggleRow label="Lona e Veículo Inspecionados" checked={lonaVeiculoInspecionados} onChange={setLonaVeiculoInspecionados} id="lona-inspecionada" />

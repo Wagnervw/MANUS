@@ -1,5 +1,5 @@
 import { useParams, useLocation } from 'wouter';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { toast } from 'sonner';
 import { useProcessos } from '@/contexts/SinistrosContext';
 import { generateProcessoReport } from '@/lib/generateReport';
@@ -83,6 +83,37 @@ function DetalhesProcessoSkeleton() {
   );
 }
 
+function HealthGauge({ percent }: { percent: number }) {
+  const radius = 40;
+  const stroke = 6;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (percent / 100) * circumference;
+  const color = percent >= 80 ? '#059669' : percent >= 50 ? '#f59e0b' : '#dc2626';
+
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <div className="relative">
+        <svg width="96" height="96" viewBox="0 0 96 96">
+          <circle cx="48" cy="48" r={radius} fill="none" stroke="currentColor" strokeWidth={stroke} className="text-border/40" />
+          <circle
+            cx="48" cy="48" r={radius} fill="none"
+            stroke={color} strokeWidth={stroke}
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={offset}
+            transform="rotate(-90 48 48)"
+            style={{ transition: 'stroke-dashoffset 0.8s ease' }}
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-lg font-bold" style={{ color }}>{percent}%</span>
+        </div>
+      </div>
+      <span className="text-xs font-medium text-muted-foreground">Completude</span>
+    </div>
+  );
+}
+
 function InfoRow({ label, value, highlight }: { label: string; value: string | number | boolean | undefined; highlight?: boolean }) {
   const display = typeof value === 'boolean' ? (value ? 'Sim' : 'Não') : (value || '—');
   return (
@@ -103,6 +134,47 @@ function ChecklistItem({ label, checked }: { label: string; checked: boolean }) 
       <BoolIcon value={checked} />
       <span className={`text-sm ${checked ? 'text-foreground' : 'text-muted-foreground'}`}>{label}</span>
     </div>
+  );
+}
+
+function CompletudeCard({ processo }: { processo: import('@/lib/data').Processo }) {
+  const { percent, items } = useMemo(() => {
+    const checks = [
+      { label: 'Documentos/Fotos recebidos', done: processo.documentosFotosRecebidos },
+      { label: 'Custos aprovados', done: processo.custosAprovados },
+      { label: 'Vistoriador encerrado', done: processo.vistoriadorEncerrado },
+      { label: 'Tratativas e-mail encerradas', done: processo.tratativasEmailEncerradas },
+      { label: 'Inventario de salvados', done: processo.inventarioSalvados },
+      { label: 'Documentos assinados', done: processo.documentosAssinados },
+      { label: 'Custos lancados', done: processo.custosLancados },
+      { label: 'Lona e veiculo inspecionados', done: processo.lonaVeiculoInspecionados },
+      { label: 'Info complementares lancadas', done: processo.informacoesComplementaresLancadas },
+      { label: 'Sem documentos pendentes', done: processo.documentosPendentes.length === 0 },
+      { label: 'Vistoria final concluida', done: processo.vistoriaFinal === 'Concluída' },
+    ];
+    const done = checks.filter(c => c.done).length;
+    return { percent: Math.round((done / checks.length) * 100), items: checks };
+  }, [processo]);
+
+  return (
+    <Card>
+      <CardContent className="pt-6">
+        <div className="flex items-center gap-6">
+          <HealthGauge percent={percent} />
+          <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
+            {items.map(item => (
+              <div key={item.label} className="flex items-center gap-2 py-1">
+                {item.done
+                  ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                  : <XCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
+                }
+                <span className={`text-xs ${item.done ? 'text-foreground' : 'text-muted-foreground'}`}>{item.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -194,6 +266,9 @@ export default function DetalhesProcesso() {
           </CardContent>
         </Card>
       )}
+
+      {/* Health Gauge */}
+      <CompletudeCard processo={processo} />
 
       {/* Tabs */}
       <Tabs defaultValue="abertura" className="w-full">
