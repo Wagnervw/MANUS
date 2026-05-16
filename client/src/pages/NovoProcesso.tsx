@@ -220,85 +220,16 @@ export default function NovoProcesso() {
       toast.error('Preencha o número do processo e selecione o operador');
       return;
     }
-    const processo: Omit<Processo, 'id' | 'historico'> = {
-      numero, operador, segurado, seguradora, dataAbertura, status: 'Em andamento',
-      dataEncerramentoVistoriador: dataEncVistoria,
-      dataEncerramentoFinalizarCentral: dataEncFinalizar,
-      justificativaAtraso: temAtraso ? justificativaAtraso : '',
-      atendimentoVistoria,
-      tacografoColetado: tacografo,
-      motivoTacografoNaoColetado: tacografo === 'nao' ? motivoTacografo : '',
-      velocidadeRegistrada: velRegistrada,
-      velocidadePermitida: velPermitida,
-      discoVencido,
-      documentosFotosRecebidos: docsFotos,
-      custosAprovados,
-      vistoriadorEncerrado: custosAprovados,
-      tratativasEmailEncerradas: ataConferida,
-      historicoStatus: '',
-      salvadosLancados: '',
-      naoConformidade: false,
-      naoConformidadeDescricao: '',
-      checklistEspecial: [],
-      inventarioSalvados,
-      planilhaPrejuizoJustificativa: '',
-      mercadoriasSemInfo: false,
-      limpezaPistaSemTratativas: false,
-      periciaSindicante: false,
-      alteracaoReserva,
-      lonaVeiculoInspecionados,
-      furosNaLona,
-      todasLonasInspecionadas,
-      acionamentoSindicancia,
-      documentosAssinados,
-      documentosAssinadosJustificativa: !documentosAssinados ? documentosAssinadosJustificativa : '',
-      mercadoriaNovaOuUsada,
-      identificacaoAnoModelo,
-      fotosEtiquetaIdentificacao: fotosEtiqueta,
-      fotosOdometro,
-      orcamentoReparo,
-      custosLancados,
-      custosUltrapassaramAutonomia: custosUltrapassaram,
-      seguradoraNotificada: custosUltrapassaram === 'sim' ? seguradoraNotificada : false,
-      informacoesComplementaresLancadas: infoComplementaresLancadas,
-      prejuizoApurado,
-      motivoPrejuizoNaoApurado: !prejuizoApurado ? motivoPrejuizo : '',
-      totalEmbarcado: Number(totalEmbarcado) || 0,
-      totalRecebido: Number(totalRecebido) || 0,
-      totalRecusado: Number(totalRecusado) || 0,
-      salvadosValor: Number(salvadosValor) || 0,
-      dispersaoSaque: Number(dispersaoSaque) || 0,
-      modeloFinalizarCentral: modelo,
-      causaEvento: causa,
-      relatoMotorista: resumoAcionamento,
-      resumoAtendimento,
-      localEvento: localEventoAba2,
-      discoTacografo,
-      parecerVelocidade: parecer,
-      acionamentoComunicado: acionamento,
-      realizadoPor,
-      horarioAcionamento: horario,
-      atendimentoInLoco,
-      situacaoVeiculo,
-      condicoesMercadoria: condicoesMerc,
-      destinacaoMercadoria: destinacaoMerc,
-      descricaoAtendimento: descricaoAtend,
-      observacaoAtendimento: obsAtend,
-      documentosPendentes: docsPendentes,
-      vistoriaFinal,
-    };
-    
-    const novoProcesso = addProcesso(processo);
     setShowAssinaturaDialog(true);
   };
 
-  const handleAssinatura = () => {
+  const handleAssinatura = async () => {
     if (!assinatura.trim()) {
       toast.error('Digite sua assinatura digital');
       return;
     }
-    
-    const processo = addProcesso({
+
+    const processo = await addProcesso({
       numero, operador, segurado, seguradora, dataAbertura, status: 'Em andamento',
       dataEncerramentoVistoriador: dataEncVistoria,
       dataEncerramentoFinalizarCentral: dataEncFinalizar,

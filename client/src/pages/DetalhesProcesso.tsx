@@ -58,7 +58,7 @@ export default function DetalhesProcesso() {
   }
 
   const parado = isProcessoParado(processo);
-  const memoriaCalculo = processo.totalEmbarcado - processo.totalRecebido - processo.totalRecusado - processo.salvadosValor + processo.faltaSaque;
+  const memoriaCalculo = processo.totalEmbarcado - processo.totalRecebido - processo.totalRecusado - processo.salvadosValor + processo.dispersaoSaque;
 
   const handleExportarPDF = () => {
     generateProcessoReport(processo);
@@ -175,7 +175,7 @@ export default function DetalhesProcesso() {
           <Card>
             <CardHeader><CardTitle className="text-base">Checklist Operacional</CardTitle></CardHeader>
             <CardContent className="space-y-3">
-              <ChecklistItem label="Documentos/fotos analisados recebidos" checked={processo.documentosFotosAnalisados} />
+              <ChecklistItem label="Documentos / Fotos Recebidos" checked={processo.documentosFotosRecebidos} />
               <ChecklistItem label="Custos aprovados no histórico" checked={processo.custosAprovados} />
               <InfoRow label="Histórico" value={processo.historicoStatus} />
               <InfoRow label="Salvados lançados" value={processo.salvadosLancados} />
@@ -190,14 +190,26 @@ export default function DetalhesProcesso() {
                 </>
               )}
               <Separator />
-              <ChecklistItem label="Ata de vistoria conferida" checked={processo.ataVistoriaConferida} />
-              <ChecklistItem label="Planilha de prejuízo conferida" checked={processo.planilhaPrejuizoConferida} />
-              {!processo.planilhaPrejuizoConferida && <InfoRow label="Justificativa" value={processo.planilhaPrejuizoJustificativa} />}
+              <ChecklistItem label="Tratativas e-mail encerradas" checked={processo.tratativasEmailEncerradas} />
+              <ChecklistItem label="Inventário de salvados" checked={processo.inventarioSalvados} />
+              <ChecklistItem label="Documentos assinados" checked={processo.documentosAssinados} />
+              {!processo.documentosAssinados && <InfoRow label="Justificativa" value={processo.documentosAssinadosJustificativa} />}
               <ChecklistItem label="Mercadorias sem info na preliminar" checked={processo.mercadoriasSemInfo} />
               <ChecklistItem label="Limpeza de pista sem tratativas" checked={processo.limpezaPistaSemTratativas} />
               <ChecklistItem label="Perícia sindicante" checked={processo.periciaSindicante} />
+              <ChecklistItem label="Acionamento sindicância" checked={processo.acionamentoSindicancia} />
               <ChecklistItem label="Alteração de reserva" checked={processo.alteracaoReserva} />
-              <InfoRow label="Vistoria lona/assoalho" value={processo.vistoriaLonaAssoalho === 'sim' ? 'Sim' : processo.vistoriaLonaAssoalho === 'nao' ? 'Não' : 'N/A'} />
+              <Separator />
+              <p className="text-sm font-semibold text-foreground">Custos</p>
+              <ChecklistItem label="Custos lançados" checked={processo.custosLancados} />
+              <InfoRow label="Custos ultrapassaram autonomia" value={processo.custosUltrapassaramAutonomia || 'N/A'} />
+              {processo.custosUltrapassaramAutonomia === 'sim' && <ChecklistItem label="Seguradora notificada" checked={processo.seguradoraNotificada} />}
+              <ChecklistItem label="Informações complementares lançadas" checked={processo.informacoesComplementaresLancadas} />
+              <Separator />
+              <p className="text-sm font-semibold text-foreground">Vistoria Lona / Veículo</p>
+              <ChecklistItem label="Lona e veículo inspecionados" checked={processo.lonaVeiculoInspecionados} />
+              <ChecklistItem label="Furos na lona" checked={processo.furosNaLona} />
+              <ChecklistItem label="Todas as lonas inspecionadas" checked={processo.todasLonasInspecionadas} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -215,7 +227,7 @@ export default function DetalhesProcesso() {
                   <InfoRow label="Total recebido" value={`R$ ${processo.totalRecebido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />
                   <InfoRow label="Total recusado" value={`R$ ${processo.totalRecusado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />
                   <InfoRow label="Salvados" value={`R$ ${processo.salvadosValor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />
-                  <InfoRow label="Falta/Saque" value={`R$ ${processo.faltaSaque.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />
+                  <InfoRow label="Dispersão/Saque" value={`R$ ${processo.dispersaoSaque.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />
                   <Separator />
                   <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
                     <p className="text-xs text-muted-foreground">Memória de Cálculo</p>
@@ -233,8 +245,8 @@ export default function DetalhesProcesso() {
             <CardContent>
               <InfoRow label="Modelo" value={processo.modeloFinalizarCentral} />
               <InfoRow label="Causa do evento" value={processo.causaEvento} highlight />
-              <InfoRow label="Declaração do motorista" value={processo.declaracaoMotorista} />
-              <InfoRow label="BO do acidente" value={processo.boAcidente} />
+              <InfoRow label="Relato do motorista" value={processo.relatoMotorista} />
+              <InfoRow label="Resumo do atendimento" value={processo.resumoAtendimento} />
               <InfoRow label="Local do evento" value={processo.localEvento} />
               <InfoRow label="Disco tacógrafo" value={processo.discoTacografo} />
               <InfoRow label="Parecer velocidade/causa" value={processo.parecerVelocidade} />

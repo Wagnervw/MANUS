@@ -128,27 +128,36 @@ export function generateProcessoReport(processo: Processo, assinatura?: string):
 
   // ---- ABA 3: CHECKLIST ----
   sectionTitle('3. CHECKLIST OPERACIONAL');
-  addRow('Documentos/Fotos Analisados', boolText(processo.documentosFotosAnalisados));
+  addRow('Documentos / Fotos Recebidos', boolText(processo.documentosFotosRecebidos));
   addRow('Custos Aprovados no Histórico', boolText(processo.custosAprovados));
   addRow('Histórico do Processo', processo.historicoStatus);
   addRow('Salvados Lançados', processo.salvadosLancados);
   addRow('Vistoriador Encerrado no Sistema', boolText(processo.vistoriadorEncerrado));
-  addRow('Ata de Vistoria Conferida', boolText(processo.ataVistoriaConferida));
+  addRow('Tratativas E-mail Encerradas', boolText(processo.tratativasEmailEncerradas));
+  addRow('Inventário de Salvados', boolText(processo.inventarioSalvados));
+  addRow('Documentos Assinados', boolText(processo.documentosAssinados));
+  if (!processo.documentosAssinados && processo.documentosAssinadosJustificativa) {
+    addRow('Justificativa', processo.documentosAssinadosJustificativa);
+  }
   addRow('Não Conformidade', boolText(processo.naoConformidade));
   if (processo.naoConformidade && processo.naoConformidadeDescricao) {
     addRow('Descrição NC', processo.naoConformidadeDescricao);
   }
   addList('Checklist Especial', processo.checklistEspecial);
-  addRow('Planilha de Prejuízo Conferida', boolText(processo.planilhaPrejuizoConferida));
-  if (!processo.planilhaPrejuizoConferida && processo.planilhaPrejuizoJustificativa) {
-    addRow('Justificativa', processo.planilhaPrejuizoJustificativa);
-  }
   addRow('Mercadorias/Equip. sem Info', boolText(processo.mercadoriasSemInfo));
   addRow('Limpeza de Pista sem Tratativas', boolText(processo.limpezaPistaSemTratativas));
   addRow('Perícia Sindicante', boolText(processo.periciaSindicante));
+  addRow('Acionamento Sindicância', boolText(processo.acionamentoSindicancia));
   addRow('Alteração de Reserva', boolText(processo.alteracaoReserva));
-  const lonaLabel = processo.vistoriaLonaAssoalho === 'sim' ? 'Sim' : processo.vistoriaLonaAssoalho === 'nao' ? 'Não' : 'N/A';
-  addRow('Vistoria Lona/Assoalho', lonaLabel);
+  addRow('Custos Lançados', boolText(processo.custosLancados));
+  addRow('Custos Ultrapassaram Autonomia', processo.custosUltrapassaramAutonomia || 'N/A');
+  if (processo.custosUltrapassaramAutonomia === 'sim') {
+    addRow('Seguradora Notificada', boolText(processo.seguradoraNotificada));
+  }
+  addRow('Info. Complementares Lançadas', boolText(processo.informacoesComplementaresLancadas));
+  addRow('Lona e Veículo Inspecionados', boolText(processo.lonaVeiculoInspecionados));
+  addRow('Furos na Lona', boolText(processo.furosNaLona));
+  addRow('Todas Lonas Inspecionadas', boolText(processo.todasLonasInspecionadas));
   y += 3;
 
   // ---- ABA 4: PREJUÍZO ----
@@ -169,10 +178,10 @@ export function generateProcessoReport(processo: Processo, assinatura?: string):
         ['Total Recebido', formatCurrency(processo.totalRecebido)],
         ['Total Recusado', formatCurrency(processo.totalRecusado)],
         ['Salvados', formatCurrency(processo.salvadosValor)],
-        ['Falta / Saque', formatCurrency(processo.faltaSaque)],
+        ['Dispersão / Saque', formatCurrency(processo.dispersaoSaque)],
       ],
       foot: [['MEMÓRIA DE CÁLCULO', formatCurrency(
-        processo.totalEmbarcado - processo.totalRecebido - processo.totalRecusado - processo.salvadosValor + processo.faltaSaque
+        processo.totalEmbarcado - processo.totalRecebido - processo.totalRecusado - processo.salvadosValor + processo.dispersaoSaque
       )]],
       headStyles: { fillColor: [30, 64, 175], fontSize: 9 },
       footStyles: { fillColor: [239, 246, 255], textColor: [30, 64, 175], fontStyle: 'bold', fontSize: 10 },
@@ -187,8 +196,8 @@ export function generateProcessoReport(processo: Processo, assinatura?: string):
   sectionTitle('5. FINALIZAR CENTRAL');
   addRow('Modelo', processo.modeloFinalizarCentral);
   addRow('Causa do Evento', processo.causaEvento);
-  addRow('Declaração do Motorista', processo.declaracaoMotorista);
-  addRow('BO do Acidente', processo.boAcidente);
+  addRow('Relato do Motorista', processo.relatoMotorista);
+  addRow('Resumo do Atendimento', processo.resumoAtendimento);
   addRow('Local do Evento', processo.localEvento);
   addRow('Disco Tacógrafo', processo.discoTacografo);
   addRow('Parecer Velocidade', processo.parecerVelocidade);
