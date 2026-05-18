@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { nanoid } from 'nanoid';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -315,7 +316,31 @@ export default function ControleProcessos() {
     setUltimosImportados([]);
 
     try {
-      const filePayloads: { base64: string; name: string }[] = [];
+      const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      if (!geminiKey) {
+        throw new Error('VITE_GEMINI_API_KEY nao configurada');
+      }
+
+      const genAI = new GoogleGenerativeAI(geminiKey);
+      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+      const promptText = `Voce e um assistente da Wagner Reguladora. Analise este aviso preliminar em PDF.
+Extraia os dados e retorne EXCLUSIVAMENTE um objeto JSON valido (sem formatacao markdown):
+{
+  "numero": "numero do processo (ex: 202610.1234.01)",
+  "segurado": "nome do segurado",
+  "seguradora": "nome da seguradora",
+  "conducao": "Apenas o primeiro nome do regulador",
+  "recebimento": "data no formato DD/MM/AAAA",
+  "tipoEvento": "Atendimento ou Vistoria",
+  "mercadoria": "tipo de mercadoria"
+}
+Valores nao encontrados devem ser "".`;
+
+      const imported: string[] = [];
+      const duplicados: string[] = [];
+      const newProcessos: ProcessoControle[] = [];
+      let processosAtualizados = [...processos];
 
       for (const file of Array.from(files)) {
         if (file.type !== 'application/pdf') {
@@ -331,39 +356,28 @@ export default function ControleProcessos() {
           binary += String.fromCharCode(bytes[i]);
         }
         const base64 = btoa(binary);
-        filePayloads.push({ base64, name: file.name });
-      }
 
-      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/extract-pdf`;
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ files: filePayloads }),
-      });
+        const result = await model.generateContent([
+          promptText,
+          {
+            inlineData: {
+              data: base64,
+              mimeType: 'application/pdf',
+            },
+          },
+        ]);
 
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`Erro na API: ${response.status} - ${errText}`);
-      }
+        const textoResposta = result.response.text();
+        const jsonLimpo = textoResposta.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
 
-      const { results, error: apiError } = await response.json();
-      if (apiError) throw new Error(apiError);
-
-      const imported: string[] = [];
-      const duplicados: string[] = [];
-      const newProcessos: ProcessoControle[] = [];
-      let processosAtualizados = [...processos];
-
-      for (const result of results) {
-        if (result.error || !result.data) {
-          toast.error(`Erro em "${result.name}": ${result.error}`);
+        let d: Record<string, string>;
+        try {
+          d = JSON.parse(jsonLimpo);
+        } catch {
+          toast.error(`Erro ao interpretar resposta para "${file.name}"`);
           continue;
         }
 
-        const d = result.data;
         const numero = d.numero || '';
 
         if (numero && processosAtualizados.some(p => p.numero === numero)) {
@@ -393,7 +407,7 @@ export default function ControleProcessos() {
         await supabase.from('processos_controle').insert(controleToRow(newItem));
         newProcessos.push(newItem);
         processosAtualizados = [newItem, ...processosAtualizados];
-        imported.push(numero || result.name);
+        imported.push(numero || file.name);
       }
 
       if (duplicados.length > 0) {
