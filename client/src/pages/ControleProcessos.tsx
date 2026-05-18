@@ -321,21 +321,10 @@ export default function ControleProcessos() {
         throw new Error('VITE_GEMINI_API_KEY nao configurada');
       }
 
-      const genAI = new GoogleGenerativeAI(geminiKey);
-      const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
-      const promptText = `Voce e um assistente da Wagner Reguladora. Analise este aviso preliminar em PDF.
-Extraia os dados e retorne EXCLUSIVAMENTE um objeto JSON valido (sem formatacao markdown):
-{
-  "numero": "numero do processo (ex: 202610.1234.01)",
-  "segurado": "nome do segurado",
-  "seguradora": "nome da seguradora",
-  "conducao": "Apenas o primeiro nome do regulador",
-  "recebimento": "data no formato DD/MM/AAAA",
-  "tipoEvento": "Atendimento ou Vistoria",
-  "mercadoria": "tipo de mercadoria"
-}
-Valores nao encontrados devem ser "".`;
+      const genAI = new GoogleGenerativeAI(geminiKey);
+      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
       const imported: string[] = [];
       const duplicados: string[] = [];
@@ -350,22 +339,26 @@ Valores nao encontrados devem ser "".`;
         }
 
         const buffer = await file.arrayBuffer();
-        const bytes = new Uint8Array(buffer);
-        let binary = '';
-        for (let i = 0; i < bytes.length; i++) {
-          binary += String.fromCharCode(bytes[i]);
+        const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buffer) }).promise;
+        const textParts: string[] = [];
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          const pageText = content.items
+            .map((item) => ('str' in item ? item.str : ''))
+            .join(' ');
+          textParts.push(pageText);
         }
-        const base64 = btoa(binary);
+        const textoExtraido = textParts.join('\n');
 
-        const result = await model.generateContent([
-          promptText,
-          {
-            inlineData: {
-              data: base64,
-              mimeType: 'application/pdf',
-            },
-          },
-        ]);
+        if (!textoExtraido.trim()) {
+          toast.error(`Nao foi possivel extrair texto de "${file.name}"`);
+          continue;
+        }
+
+        const promptFinal = `Voce e um assistente da Wagner Reguladora. Analise este texto extraido de um aviso preliminar em PDF:\n\n${textoExtraido}\n\nExtraia os dados e retorne APENAS um JSON valido (sem formatacao markdown): { "numero": "numero do processo", "segurado": "nome do segurado", "seguradora": "nome da seguradora", "conducao": "Apenas o primeiro nome do regulador", "recebimento": "data no formato DD/MM/AAAA", "tipoEvento": "Atendimento ou Vistoria", "mercadoria": "tipo de mercadoria" }. Valores nao encontrados devem ser "".`;
+
+        const result = await model.generateContent(promptFinal);
 
         const textoResposta = result.response.text();
         const jsonLimpo = textoResposta.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
