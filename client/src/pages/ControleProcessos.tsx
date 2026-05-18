@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { nanoid } from 'nanoid';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import * as pdfjsLib from 'pdfjs-dist';
+import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.mjs?url';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,7 +36,7 @@ import {
 import { Plus, FileUp, Loader as Loader2, FileText, Sparkles, Trash2, MoveVertical as MoreVertical, CircleAlert as AlertCircle, CircleCheck as CheckCircle2, ClipboardList } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 export interface ProcessoControle {
   id: string;
