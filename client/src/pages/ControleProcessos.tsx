@@ -322,7 +322,7 @@ export default function ControleProcessos() {
       }
 
       const genAI = new GoogleGenerativeAI(geminiKey);
-      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
 
       const promptText = `Voce e um assistente da Wagner Reguladora. Analise este aviso preliminar em PDF.
 Extraia os dados e retorne EXCLUSIVAMENTE um objeto JSON valido (sem formatacao markdown):
