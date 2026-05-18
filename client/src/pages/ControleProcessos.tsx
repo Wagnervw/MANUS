@@ -340,27 +340,36 @@ export default function ControleProcessos() {
           return;
         }
 
-        const buffer = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buffer) }).promise;
-        const textParts: string[] = [];
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+        const imageParts: { inlineData: { data: string; mimeType: string } }[] = [];
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
-          const content = await page.getTextContent();
-          const pageText = content.items
-            .map((item) => ('str' in item ? item.str : ''))
-            .join(' ');
-          textParts.push(pageText);
+          const viewport = page.getViewport({ scale: 1.5 });
+          const canvas = document.createElement('canvas');
+          const context = canvas.getContext('2d');
+          if (!context) continue;
+          canvas.height = viewport.height;
+          canvas.width = viewport.width;
+          await page.render({ canvasContext: context, viewport }).promise;
+          const base64Image = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+          imageParts.push({
+            inlineData: {
+              data: base64Image,
+              mimeType: 'image/jpeg',
+            },
+          });
         }
-        const textoExtraido = textParts.join('\n');
 
-        if (!textoExtraido.trim()) {
-          toast.error(`Nao foi possivel extrair texto de "${file.name}"`);
+        if (imageParts.length === 0) {
+          toast.error(`Nao foi possivel renderizar "${file.name}"`);
           continue;
         }
 
-        const promptFinal = `Voce e um assistente da Wagner Reguladora. Analise este texto extraido de um aviso preliminar em PDF:\n\n${textoExtraido}\n\nExtraia os dados e retorne APENAS um JSON valido (sem formatacao markdown): { "numero": "numero do processo", "segurado": "nome do segurado", "seguradora": "nome da seguradora", "conducao": "Apenas o primeiro nome do regulador", "recebimento": "data no formato DD/MM/AAAA", "tipoEvento": "Atendimento ou Vistoria", "mercadoria": "tipo de mercadoria" }. Valores nao encontrados devem ser "".`;
+        const promptFinal = `Voce e um assistente da Wagner Reguladora. Analise estas imagens de um aviso preliminar escaneado. Extraia os dados e retorne EXCLUSIVAMENTE um objeto JSON valido (sem formatacao markdown): { "numero": "numero do processo (ex: 202610.1234.01)", "segurado": "nome do segurado", "seguradora": "nome da seguradora", "conducao": "Apenas o primeiro nome do regulador", "recebimento": "data no formato DD/MM/AAAA", "tipoEvento": "Atendimento ou Vistoria", "mercadoria": "tipo de mercadoria" }. Valores nao encontrados devem ser "".`;
 
-        const result = await model.generateContent(promptFinal);
+        const result = await model.generateContent([promptFinal, ...imageParts]);
 
         const textoResposta = result.response.text();
         const jsonLimpo = textoResposta.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
