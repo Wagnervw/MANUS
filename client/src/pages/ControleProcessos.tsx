@@ -3,7 +3,6 @@ import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { nanoid } from 'nanoid';
 import * as pdfjsLib from 'pdfjs-dist';
-import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.mjs?url';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -36,7 +35,8 @@ import {
 import { Plus, FileUp, Loader as Loader2, FileText, Sparkles, Trash2, MoveVertical as MoreVertical, CircleAlert as AlertCircle, CircleCheck as CheckCircle2, ClipboardList } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+const workerUrl = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/' + pdfjsLib.version + '/pdf.worker.min.mjs';
+pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
 
 export interface ProcessoControle {
   id: string;
@@ -346,7 +346,7 @@ export default function ControleProcessos() {
         const imageParts: { inlineData: { data: string; mimeType: string } }[] = [];
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
-          const viewport = page.getViewport({ scale: 1.5 });
+          const viewport = page.getViewport({ scale: 2.0 });
           const canvas = document.createElement('canvas');
           const context = canvas.getContext('2d');
           if (!context) continue;
