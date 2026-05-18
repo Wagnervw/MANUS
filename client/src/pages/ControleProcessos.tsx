@@ -353,7 +353,9 @@ export default function ControleProcessos() {
       if (apiError) throw new Error(apiError);
 
       const imported: string[] = [];
+      const duplicados: string[] = [];
       const newProcessos: ProcessoControle[] = [];
+      let processosAtualizados = [...processos];
 
       for (const result of results) {
         if (result.error || !result.data) {
@@ -362,9 +364,16 @@ export default function ControleProcessos() {
         }
 
         const d = result.data;
+        const numero = d.numero || '';
+
+        if (numero && processosAtualizados.some(p => p.numero === numero)) {
+          duplicados.push(numero);
+          continue;
+        }
+
         const newItem: ProcessoControle = {
           id: nanoid(),
-          numero: d.numero || '',
+          numero,
           segurado: d.segurado || '',
           seguradora: d.seguradora || '',
           conducao: d.conducao || '',
@@ -383,7 +392,12 @@ export default function ControleProcessos() {
 
         await supabase.from('processos_controle').insert(controleToRow(newItem));
         newProcessos.push(newItem);
-        imported.push(d.numero || result.name);
+        processosAtualizados = [newItem, ...processosAtualizados];
+        imported.push(numero || result.name);
+      }
+
+      if (duplicados.length > 0) {
+        toast.warning(`${duplicados.length} processo(s) duplicado(s) ignorado(s): ${duplicados.join(', ')}`);
       }
 
       if (newProcessos.length > 0) {

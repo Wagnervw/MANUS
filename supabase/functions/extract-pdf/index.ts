@@ -7,21 +7,20 @@ const corsHeaders = {
     "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
-const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY") || "";
+const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || "";
 
-const EXTRACTION_PROMPT = `Voce e um assistente da Wagner Reguladora. Analise este PDF de aviso preliminar e extraia os dados do processo.
-Retorne APENAS um JSON valido, sem markdown, sem explicacoes, sem texto adicional. Apenas o JSON puro.
-O formato deve ser exatamente:
+const EXTRACTION_PROMPT = `Voce e um assistente da Wagner Reguladora. Analise este aviso preliminar em PDF.
+Extraia os dados e retorne EXCLUSIVAMENTE um objeto JSON valido.
 {
-  "numero": "numero do processo/sinistro",
-  "segurado": "nome do segurado/empresa",
+  "numero": "numero do processo (ex: 202610.1234.01)",
+  "segurado": "nome do segurado",
   "seguradora": "nome da seguradora",
-  "conducao": "apenas o primeiro nome do regulador/condutor",
-  "recebimento": "data de recebimento no formato DD/MM/AAAA",
+  "conducao": "Apenas o primeiro nome do regulador",
+  "recebimento": "data no formato DD/MM/AAAA",
   "tipoEvento": "Atendimento ou Vistoria",
-  "mercadoria": "descricao da mercadoria/carga"
+  "mercadoria": "tipo de mercadoria"
 }
-Se algum campo nao for encontrado, use string vazia "".`;
+Valores nao encontrados devem ser "".`;
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -29,9 +28,9 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    if (!ANTHROPIC_API_KEY) {
+    if (!GEMINI_API_KEY) {
       return new Response(
-        JSON.stringify({ error: "ANTHROPIC_API_KEY not configured" }),
+        JSON.stringify({ error: "GEMINI_API_KEY not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -55,63 +54,55 @@ Deno.serve(async (req: Request) => {
         continue;
       }
 
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+
+      const response = await fetch(url, {
         method: "POST",
-        headers: {
-          "x-api-key": ANTHROPIC_API_KEY,
-          "anthropic-version": "2023-06-01",
-          "anthropic-beta": "pdfs-2024-09-25",
-          "content-type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1024,
-          messages: [
+          contents: [
             {
               role: "user",
-              content: [
+              parts: [
                 {
-                  type: "document",
-                  source: {
-                    type: "base64",
-                    media_type: "application/pdf",
+                  inlineData: {
+                    mimeType: "application/pdf",
                     data: base64,
                   },
                 },
-                {
-                  type: "text",
-                  text: EXTRACTION_PROMPT,
-                },
+                { text: EXTRACTION_PROMPT },
               ],
             },
           ],
+          generationConfig: {
+            responseMimeType: "application/json",
+          },
         }),
       });
 
       if (!response.ok) {
         const errText = await response.text();
-        results.push({ name, error: `Claude API error: ${response.status} - ${errText}`, data: null });
+        results.push({
+          name,
+          error: `Gemini API error: ${response.status} - ${errText}`,
+          data: null,
+        });
         continue;
       }
 
       const apiResult = await response.json();
-      const textContent = apiResult.content?.find(
-        (c: { type: string }) => c.type === "text"
-      );
-
-      if (!textContent) {
-        results.push({ name, error: "No text in Claude response", data: null });
-        continue;
-      }
-
-      let rawText = textContent.text.trim();
-      rawText = rawText.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
+      const rawText =
+        apiResult.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
 
       try {
         const parsed = JSON.parse(rawText);
         results.push({ name, error: null, data: parsed });
       } catch {
-        results.push({ name, error: `Failed to parse JSON: ${rawText.slice(0, 200)}`, data: null });
+        results.push({
+          name,
+          error: `Failed to parse JSON: ${rawText.slice(0, 200)}`,
+          data: null,
+        });
       }
     }
 
@@ -121,7 +112,10 @@ Deno.serve(async (req: Request) => {
   } catch (err) {
     return new Response(
       JSON.stringify({ error: String(err) }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
     );
   }
 });
