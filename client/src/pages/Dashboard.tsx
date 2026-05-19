@@ -1,10 +1,11 @@
-// Dashboard — Wagner Reguladora - Finalização Central
-// Design: Corporate Precision — #1e40af navy
 import { useMemo } from 'react';
+import { useLocation } from 'wouter';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { useProcessos } from '@/contexts/SinistrosContext';
+import { useControleAlertas } from '@/hooks/useControleAlertas';
 import {
   operadoresDemo,
   calcularBonificacao,
@@ -23,7 +24,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, AreaChart, Area, Legend,
 } from 'recharts';
-import { CircleCheck as CheckCircle2, Clock, TriangleAlert as AlertTriangle, TrendingUp, DollarSign, Award, Trophy } from 'lucide-react';
+import { CircleCheck as CheckCircle2, Clock, TriangleAlert as AlertTriangle, TrendingUp, DollarSign, Award, Trophy, CircleAlert as AlertCircle, ArrowRight } from 'lucide-react';
 
 const HERO_BG = 'https://d2xsxph8kpxj0f.cloudfront.net/310519663134927829/ZdDkYSKthhyyCPQ5Q4kgLX/wagner-hero-banner-hkHKaZYxrfDlKE2dKjKNwp.webp';
 
@@ -50,7 +51,9 @@ function StatCard({ title, value, subtitle, icon: Icon, color, accentGradient }:
 }
 
 export default function Dashboard() {
+  const [, navigate] = useLocation();
   const { processos } = useProcessos();
+  const alertas = useControleAlertas();
 
   const stats = useMemo(() => {
     const concluidos = processos.filter(p => p.status === 'Concluído').length;
@@ -87,6 +90,119 @@ export default function Dashboard() {
         <StatCard title="Em Andamento" value={stats.emAndamento} subtitle="em processamento" icon={Clock} color="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300" accentGradient="bg-gradient-to-br from-amber-400 to-amber-600" />
         <StatCard title="Pendentes" value={stats.pendentes} subtitle="aguardando ação" icon={AlertTriangle} color="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300" accentGradient="bg-gradient-to-br from-red-500 to-red-700" />
       </div>
+
+      {/* Alertas do Controle de Processos */}
+      {!alertas.loading && alertas.total > 0 && (
+        <Card className="border-red-200 bg-red-50/50 dark:bg-red-950/10 dark:border-red-900/60 shadow-sm">
+          <CardContent className="py-4 px-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-red-600" />
+                <h3 className="font-semibold text-red-800 dark:text-red-300 text-sm">
+                  Alertas do Controle -- {alertas.total} pendencia(s)
+                </h3>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs border-red-300 text-red-700 hover:bg-red-100 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-900/30"
+                onClick={() => navigate('/controle')}
+              >
+                Ver Controle <ArrowRight className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {alertas.preliminar.length > 0 && (
+                <button
+                  onClick={() => navigate('/controle')}
+                  className="flex items-start gap-2.5 p-3 rounded-lg bg-red-100/60 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 text-left hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors cursor-pointer"
+                >
+                  <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-semibold text-red-800 dark:text-red-300">
+                      Preliminar Atrasada
+                    </p>
+                    <p className="text-xl font-bold text-red-700 dark:text-red-400 mt-0.5">
+                      {alertas.preliminar.length}
+                    </p>
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {alertas.preliminar.slice(0, 3).map((a) => (
+                        <Badge key={a.id} variant="outline" className="border-red-300 text-red-700 dark:text-red-300 text-[10px]">
+                          {a.numero || 'S/N'} ({a.dias}d)
+                        </Badge>
+                      ))}
+                      {alertas.preliminar.length > 3 && (
+                        <Badge variant="outline" className="border-red-300 text-red-700 dark:text-red-300 text-[10px]">
+                          +{alertas.preliminar.length - 3}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                </button>
+              )}
+
+              {alertas.custos.length > 0 && (
+                <button
+                  onClick={() => navigate('/controle')}
+                  className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-100/60 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 text-left hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors cursor-pointer"
+                >
+                  <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">
+                      Custos Pendentes
+                    </p>
+                    <p className="text-xl font-bold text-amber-700 dark:text-amber-400 mt-0.5">
+                      {alertas.custos.length}
+                    </p>
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {alertas.custos.slice(0, 3).map((a) => (
+                        <Badge key={a.id} variant="outline" className="border-amber-300 text-amber-700 dark:text-amber-300 text-[10px]">
+                          {a.numero || 'S/N'} ({a.dias}d)
+                        </Badge>
+                      ))}
+                      {alertas.custos.length > 3 && (
+                        <Badge variant="outline" className="border-amber-300 text-amber-700 dark:text-amber-300 text-[10px]">
+                          +{alertas.custos.length - 3}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                </button>
+              )}
+
+              {alertas.salvados.length > 0 && (
+                <button
+                  onClick={() => navigate('/controle')}
+                  className="flex items-start gap-2.5 p-3 rounded-lg bg-orange-100/60 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800/50 text-left hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors cursor-pointer"
+                >
+                  <AlertCircle className="w-4 h-4 text-orange-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-semibold text-orange-800 dark:text-orange-300">
+                      Salvados Pendentes
+                    </p>
+                    <p className="text-xl font-bold text-orange-700 dark:text-orange-400 mt-0.5">
+                      {alertas.salvados.length}
+                    </p>
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {alertas.salvados.slice(0, 3).map((a) => (
+                        <Badge key={a.id} variant="outline" className="border-orange-300 text-orange-700 dark:text-orange-300 text-[10px]">
+                          {a.numero || 'S/N'} ({a.dias}d)
+                        </Badge>
+                      ))}
+                      {alertas.salvados.length > 3 && (
+                        <Badge variant="outline" className="border-orange-300 text-orange-700 dark:text-orange-300 text-[10px]">
+                          +{alertas.salvados.length - 3}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                </button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Bonificação + Meta */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

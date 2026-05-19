@@ -35,6 +35,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Plus, FileUp, Loader as Loader2, Sparkles, Trash2, MoveVertical as MoreVertical, CircleAlert as AlertCircle, CircleCheck as CheckCircle2, ClipboardList, ExternalLink, TriangleAlert as AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { parseDataBr, daysBetween, type AlertaItem } from '@/hooks/useControleAlertas';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.mjs',
@@ -154,21 +155,6 @@ function controleToRow(p: ProcessoControle) {
     origem_pdf: p.origemPdf || false,
     updated_at: new Date().toISOString(),
   };
-}
-
-function parseDataBr(dateStr: string): Date | null {
-  if (!dateStr) return null;
-  const parts = dateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
-  if (parts) {
-    return new Date(Number(parts[3]), Number(parts[2]) - 1, Number(parts[1]));
-  }
-  const isoDate = new Date(dateStr);
-  return isNaN(isoDate.getTime()) ? null : isoDate;
-}
-
-function daysBetween(from: Date, to: Date): number {
-  const diffMs = to.getTime() - from.getTime();
-  return Math.floor(diffMs / (1000 * 60 * 60 * 24));
 }
 
 function statusBadgeClasses(value: string): string {
@@ -436,22 +422,48 @@ export default function ControleProcessos() {
     []
   );
 
-  // Prazo alerts: Preliminar must be sent within 2 days of aberturaSinistro
-  const alertas = useMemo(() => {
+  const alertasPreliminar = useMemo(() => {
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
-    const items: { id: string; numero: string; dias: number }[] = [];
-
+    const items: AlertaItem[] = [];
     for (const p of processos) {
       if (p.preliminar.toLowerCase() === 'enviado') continue;
       const dtAbertura = parseDataBr(p.aberturaSinistro);
       if (!dtAbertura) continue;
       const prazo = new Date(dtAbertura);
       prazo.setDate(prazo.getDate() + 2);
-      const diasRestantes = daysBetween(hoje, prazo);
-      if (diasRestantes <= 0) {
-        items.push({ id: p.id, numero: p.numero, dias: Math.abs(diasRestantes) });
-      }
+      const diasAtraso = daysBetween(prazo, hoje);
+      if (diasAtraso >= 0) items.push({ id: p.id, numero: p.numero, dias: diasAtraso });
+    }
+    return items;
+  }, [processos]);
+
+  const alertasCustos = useMemo(() => {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const items: AlertaItem[] = [];
+    for (const p of processos) {
+      if (p.custos.toLowerCase() === 'enviado') continue;
+      const dtAbertura = parseDataBr(p.aberturaSinistro);
+      if (!dtAbertura) continue;
+      const prazo = new Date(dtAbertura);
+      prazo.setDate(prazo.getDate() + 2);
+      const diasAtraso = daysBetween(prazo, hoje);
+      if (diasAtraso >= 0) items.push({ id: p.id, numero: p.numero, dias: diasAtraso });
+    }
+    return items;
+  }, [processos]);
+
+  const alertasSalvados = useMemo(() => {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const items: AlertaItem[] = [];
+    for (const p of processos) {
+      if (p.salvados.toLowerCase() !== 'pendente') continue;
+      const dtAbertura = parseDataBr(p.aberturaSinistro);
+      if (!dtAbertura) continue;
+      const dias = daysBetween(dtAbertura, hoje);
+      items.push({ id: p.id, numero: p.numero, dias });
     }
     return items;
   }, [processos]);
@@ -646,17 +658,20 @@ export default function ControleProcessos() {
     }
   };
 
-  // Check if a row has preliminar alert
-  const preliminarAtrasada = useCallback(
+  const rowHasAlert = useCallback(
     (p: ProcessoControle): boolean => {
-      if (p.preliminar.toLowerCase() === 'enviado') return false;
       const dtAbertura = parseDataBr(p.aberturaSinistro);
       if (!dtAbertura) return false;
-      const prazo = new Date(dtAbertura);
-      prazo.setDate(prazo.getDate() + 2);
       const hoje = new Date();
       hoje.setHours(0, 0, 0, 0);
-      return hoje >= prazo;
+      const prazo = new Date(dtAbertura);
+      prazo.setDate(prazo.getDate() + 2);
+      const vencido = hoje >= prazo;
+
+      if (p.preliminar.toLowerCase() !== 'enviado' && vencido) return true;
+      if (p.custos.toLowerCase() !== 'enviado' && vencido) return true;
+      if (p.salvados.toLowerCase() === 'pendente') return true;
+      return false;
     },
     []
   );
@@ -703,26 +718,68 @@ export default function ControleProcessos() {
         </div>
       </div>
 
-      {/* Alertas de Prazo da Preliminar */}
-      {alertas.length > 0 && (
+      {/* Alertas de Prazo */}
+      {alertasPreliminar.length > 0 && (
         <Card className="border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-900">
           <CardContent className="py-3 px-4 flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
               <p className="font-semibold text-red-800 dark:text-red-300 text-sm">
-                Preliminar Atrasada -- {alertas.length} processo(s)
+                Preliminar Atrasada -- {alertasPreliminar.length} processo(s)
               </p>
               <p className="text-xs text-red-700 dark:text-red-400 mt-1">
                 A preliminar deve ser enviada em no maximo 2 dias apos a abertura do sinistro.
               </p>
               <div className="flex flex-wrap gap-1.5 mt-2">
-                {alertas.map((a) => (
-                  <Badge
-                    key={a.id}
-                    variant="outline"
-                    className="border-red-300 text-red-700 dark:text-red-300 text-[10px]"
-                  >
+                {alertasPreliminar.map((a) => (
+                  <Badge key={a.id} variant="outline" className="border-red-300 text-red-700 dark:text-red-300 text-[10px]">
                     {a.numero || 'Sem numero'} ({a.dias}d atrasado)
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {alertasCustos.length > 0 && (
+        <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900">
+          <CardContent className="py-3 px-4 flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="font-semibold text-amber-800 dark:text-amber-300 text-sm">
+                Custos Pendentes -- {alertasCustos.length} processo(s)
+              </p>
+              <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
+                Os custos devem ser enviados em no maximo 2 dias apos a abertura do sinistro.
+              </p>
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {alertasCustos.map((a) => (
+                  <Badge key={a.id} variant="outline" className="border-amber-300 text-amber-700 dark:text-amber-300 text-[10px]">
+                    {a.numero || 'Sem numero'} ({a.dias}d atrasado)
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {alertasSalvados.length > 0 && (
+        <Card className="border-orange-200 bg-orange-50 dark:bg-orange-950/20 dark:border-orange-900">
+          <CardContent className="py-3 px-4 flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="font-semibold text-orange-800 dark:text-orange-300 text-sm">
+                Salvados Pendentes -- {alertasSalvados.length} processo(s)
+              </p>
+              <p className="text-xs text-orange-700 dark:text-orange-400 mt-1">
+                Existem processos com salvados pendentes que precisam de atencao.
+              </p>
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {alertasSalvados.map((a) => (
+                  <Badge key={a.id} variant="outline" className="border-orange-300 text-orange-700 dark:text-orange-300 text-[10px]">
+                    {a.numero || 'Sem numero'} ({a.dias}d)
                   </Badge>
                 ))}
               </div>
@@ -842,7 +899,7 @@ export default function ControleProcessos() {
                 </TableHeader>
                 <TableBody>
                   {processos.map((p) => {
-                    const hasAlert = preliminarAtrasada(p);
+                    const hasAlert = rowHasAlert(p);
                     return (
                       <TableRow
                         key={p.id}
@@ -883,7 +940,7 @@ export default function ControleProcessos() {
                                       <AlertTriangle className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
                                     </TooltipTrigger>
                                     <TooltipContent>
-                                      Preliminar atrasada!
+                                      Pendencias neste processo
                                     </TooltipContent>
                                   </Tooltip>
                                 )}
