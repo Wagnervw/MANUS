@@ -35,7 +35,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Plus, FileUp, Loader as Loader2, Sparkles, Trash2, MoveVertical as MoreVertical, CircleAlert as AlertCircle, CircleCheck as CheckCircle2, ClipboardList, ExternalLink, TriangleAlert as AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { parseDataBr, daysBetween, type AlertaItem } from '@/hooks/useControleAlertas';
+import { parseDataBr, daysBetween } from '@/hooks/useControleAlertas';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.mjs',
@@ -422,51 +422,56 @@ export default function ControleProcessos() {
     []
   );
 
-  const alertasPreliminar = useMemo(() => {
+  interface ProcessoAlerta {
+    id: string;
+    numero: string;
+    pendencias: { tipo: 'Preliminar' | 'Custos' | 'Salvados'; dias: number }[];
+  }
+
+  const alertasUnificados = useMemo(() => {
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
-    const items: AlertaItem[] = [];
+    const map = new Map<string, ProcessoAlerta>();
+
     for (const p of processos) {
-      if (p.preliminar.toLowerCase() === 'enviado') continue;
       const dtAbertura = parseDataBr(p.aberturaSinistro);
       if (!dtAbertura) continue;
+
       const prazo = new Date(dtAbertura);
       prazo.setDate(prazo.getDate() + 2);
       const diasAtraso = daysBetween(prazo, hoje);
-      if (diasAtraso >= 0) items.push({ id: p.id, numero: p.numero, dias: diasAtraso });
+
+      const pendencias: ProcessoAlerta['pendencias'] = [];
+
+      if (p.preliminar.toLowerCase() !== 'enviado' && diasAtraso >= 0) {
+        pendencias.push({ tipo: 'Preliminar', dias: diasAtraso });
+      }
+      if (p.custos.toLowerCase() !== 'enviado' && diasAtraso >= 0) {
+        pendencias.push({ tipo: 'Custos', dias: diasAtraso });
+      }
+      if (p.salvados.toLowerCase() === 'pendente') {
+        pendencias.push({ tipo: 'Salvados', dias: daysBetween(dtAbertura, hoje) });
+      }
+
+      if (pendencias.length > 0) {
+        map.set(p.id, { id: p.id, numero: p.numero, pendencias });
+      }
     }
-    return items;
+
+    return Array.from(map.values());
   }, [processos]);
 
-  const alertasCustos = useMemo(() => {
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
-    const items: AlertaItem[] = [];
-    for (const p of processos) {
-      if (p.custos.toLowerCase() === 'enviado') continue;
-      const dtAbertura = parseDataBr(p.aberturaSinistro);
-      if (!dtAbertura) continue;
-      const prazo = new Date(dtAbertura);
-      prazo.setDate(prazo.getDate() + 2);
-      const diasAtraso = daysBetween(prazo, hoje);
-      if (diasAtraso >= 0) items.push({ id: p.id, numero: p.numero, dias: diasAtraso });
+  const resumoAlertas = useMemo(() => {
+    let preliminar = 0, custos = 0, salvados = 0;
+    for (const a of alertasUnificados) {
+      for (const p of a.pendencias) {
+        if (p.tipo === 'Preliminar') preliminar++;
+        else if (p.tipo === 'Custos') custos++;
+        else salvados++;
+      }
     }
-    return items;
-  }, [processos]);
-
-  const alertasSalvados = useMemo(() => {
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
-    const items: AlertaItem[] = [];
-    for (const p of processos) {
-      if (p.salvados.toLowerCase() !== 'pendente') continue;
-      const dtAbertura = parseDataBr(p.aberturaSinistro);
-      if (!dtAbertura) continue;
-      const dias = daysBetween(dtAbertura, hoje);
-      items.push({ id: p.id, numero: p.numero, dias });
-    }
-    return items;
-  }, [processos]);
+    return { preliminar, custos, salvados, total: preliminar + custos + salvados };
+  }, [alertasUnificados]);
 
   const handleAddManual = async () => {
     if (!formNumero.trim()) {
@@ -718,71 +723,62 @@ export default function ControleProcessos() {
         </div>
       </div>
 
-      {/* Alertas de Prazo */}
-      {alertasPreliminar.length > 0 && (
-        <Card className="border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-900">
-          <CardContent className="py-3 px-4 flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <p className="font-semibold text-red-800 dark:text-red-300 text-sm">
-                Preliminar Atrasada -- {alertasPreliminar.length} processo(s)
-              </p>
-              <p className="text-xs text-red-700 dark:text-red-400 mt-1">
-                A preliminar deve ser enviada em no maximo 2 dias apos a abertura do sinistro.
-              </p>
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {alertasPreliminar.map((a) => (
-                  <Badge key={a.id} variant="outline" className="border-red-300 text-red-700 dark:text-red-300 text-[10px]">
-                    {a.numero || 'Sem numero'} ({a.dias}d atrasado)
-                  </Badge>
-                ))}
+      {/* Alertas Unificados */}
+      {alertasUnificados.length > 0 && (
+        <Card className="border-red-200/80 bg-gradient-to-r from-red-50/80 via-amber-50/40 to-orange-50/40 dark:from-red-950/15 dark:via-amber-950/10 dark:to-orange-950/10 dark:border-red-900/60">
+          <CardContent className="py-3 px-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-4.5 h-4.5 text-red-600" />
+                <p className="font-semibold text-foreground text-sm">
+                  {alertasUnificados.length} processo(s) com pendencias
+                </p>
+              </div>
+              <div className="flex gap-2">
+                {resumoAlertas.preliminar > 0 && (
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300">
+                    {resumoAlertas.preliminar} Preliminar
+                  </span>
+                )}
+                {resumoAlertas.custos > 0 && (
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                    {resumoAlertas.custos} Custos
+                  </span>
+                )}
+                {resumoAlertas.salvados > 0 && (
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300">
+                    {resumoAlertas.salvados} Salvados
+                  </span>
+                )}
               </div>
             </div>
-          </CardContent>
-        </Card>
-      )}
 
-      {alertasCustos.length > 0 && (
-        <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900">
-          <CardContent className="py-3 px-4 flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <p className="font-semibold text-amber-800 dark:text-amber-300 text-sm">
-                Custos Pendentes -- {alertasCustos.length} processo(s)
-              </p>
-              <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
-                Os custos devem ser enviados em no maximo 2 dias apos a abertura do sinistro.
-              </p>
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {alertasCustos.map((a) => (
-                  <Badge key={a.id} variant="outline" className="border-amber-300 text-amber-700 dark:text-amber-300 text-[10px]">
-                    {a.numero || 'Sem numero'} ({a.dias}d atrasado)
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {alertasSalvados.length > 0 && (
-        <Card className="border-orange-200 bg-orange-50 dark:bg-orange-950/20 dark:border-orange-900">
-          <CardContent className="py-3 px-4 flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <p className="font-semibold text-orange-800 dark:text-orange-300 text-sm">
-                Salvados Pendentes -- {alertasSalvados.length} processo(s)
-              </p>
-              <p className="text-xs text-orange-700 dark:text-orange-400 mt-1">
-                Existem processos com salvados pendentes que precisam de atencao.
-              </p>
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {alertasSalvados.map((a) => (
-                  <Badge key={a.id} variant="outline" className="border-orange-300 text-orange-700 dark:text-orange-300 text-[10px]">
-                    {a.numero || 'Sem numero'} ({a.dias}d)
-                  </Badge>
-                ))}
-              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {alertasUnificados.map((a) => (
+                <div
+                  key={a.id}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-white/60 dark:bg-white/5 border border-border/50"
+                >
+                  <span className="text-xs font-mono font-semibold text-foreground truncate min-w-0 flex-shrink">
+                    {a.numero || 'S/N'}
+                  </span>
+                  <div className="flex gap-1 flex-wrap ml-auto flex-shrink-0">
+                    {a.pendencias.map((p) => (
+                      <span
+                        key={p.tipo}
+                        className={cn(
+                          'text-[10px] font-semibold px-1.5 py-0.5 rounded border whitespace-nowrap',
+                          p.tipo === 'Preliminar' && 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800',
+                          p.tipo === 'Custos' && 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800',
+                          p.tipo === 'Salvados' && 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-800'
+                        )}
+                      >
+                        {p.tipo} {p.dias}d
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
