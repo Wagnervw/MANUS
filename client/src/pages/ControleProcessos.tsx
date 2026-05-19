@@ -493,7 +493,7 @@ export default function ControleProcessos() {
     setUltimosImportados([]);
 
     try {
-      const geminiKey = AIzaSyDCtjKce8C4fvisuHkNGCEwUt0qyaIonyE;
+      const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
       if (!geminiKey) {
         throw new Error('VITE_GEMINI_API_KEY nao configurada');
       }
