@@ -328,7 +328,7 @@ export default function ControleProcessos() {
       }
 
       const genAI = new GoogleGenerativeAI(geminiKey);
-      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
 
       const imported: string[] = [];
       const duplicados: string[] = [];
