@@ -1,27 +1,40 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { nanoid } from 'nanoid';
 import * as pdfjsLib from 'pdfjs-dist';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Progress } from '@/components/ui/progress';
-import { differenceInDays, parse, addDays, isToday, isPast } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { 
-  FileUp, Loader2, Sparkles, Trash2, AlertCircle, CheckCircle2, 
-  ClipboardList, Calendar, BellRing, Target, Clock, AlertTriangle, 
-  LayoutGrid, List, Filter
-} from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Plus, FileUp, Loader as Loader2, FileText, Sparkles, Trash2, MoveVertical as MoreVertical, CircleAlert as AlertCircle, CircleCheck as CheckCircle2, ClipboardList } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-// Carrega o motor do PDF direto do sistema local (sem usar a internet/CDN)
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.mjs',
   import.meta.url
@@ -48,314 +61,651 @@ export interface ProcessoControle {
 
 type EditableField = keyof Omit<ProcessoControle, 'id' | 'origemPdf'>;
 
-// ==========================================
-// HELPERS E REGRAS DE NEGÓCIO
-// ==========================================
+const STATUS_COLUMNS: { key: EditableField; label: string; short: string }[] = [
+  { key: 'preliminar', label: 'Preliminar', short: 'Prel.' },
+  { key: 'email', label: 'E-mail', short: 'Email' },
+  { key: 'custos', label: 'Custos', short: 'Cust.' },
+  { key: 'salvados', label: 'Salvados', short: 'Salv.' },
+  { key: 'finCentral', label: 'Fin. Central', short: 'F.Cen.' },
+  { key: 'cobrancaDocs', label: 'Cobr. Docs', short: 'C.Doc' },
+  { key: 'decurso', label: 'Decurso', short: 'Dec.' },
+];
 
-const parseDataBr = (dataStr: string) => {
-  if (!dataStr) return new Date();
-  try {
-    return parse(dataStr, 'dd/MM/yyyy', new Date());
-  } catch {
-    return new Date();
-  }
-};
+const INFO_COLUMNS: { key: EditableField; label: string }[] = [
+  { key: 'numero', label: 'Numero' },
+  { key: 'segurado', label: 'Segurado' },
+  { key: 'seguradora', label: 'Seguradora' },
+  { key: 'conducao', label: 'Conducao' },
+  { key: 'recebimento', label: 'Recebimento' },
+  { key: 'tipoEvento', label: 'Tipo Evento' },
+  { key: 'mercadoria', label: 'Mercadoria' },
+];
 
-const calcularPrazos = (recebimento: string) => {
-  const dtRecebimento = parseDataBr(recebimento);
+function rowToControle(row: Record<string, unknown>): ProcessoControle {
   return {
-    preliminar: addDays(dtRecebimento, 3),
-    cobrancaDocs: addDays(dtRecebimento, 5),
-    finCentral: addDays(dtRecebimento, 15),
+    id: row.id as string,
+    numero: (row.numero as string) || '',
+    segurado: (row.segurado as string) || '',
+    seguradora: (row.seguradora as string) || '',
+    conducao: (row.conducao as string) || '',
+    recebimento: (row.recebimento as string) || '',
+    tipoEvento: (row.tipo_evento as string) || '',
+    mercadoria: (row.mercadoria as string) || '',
+    preliminar: (row.preliminar as string) || '',
+    email: (row.email as string) || '',
+    custos: (row.custos as string) || '',
+    salvados: (row.salvados as string) || '',
+    finCentral: (row.fin_central as string) || '',
+    cobrancaDocs: (row.cobranca_docs as string) || '',
+    decurso: (row.decurso as string) || '',
+    origemPdf: (row.origem_pdf as boolean) || false,
   };
-};
+}
 
-const getStatusColor = (val: string) => {
-  const v = val?.toLowerCase().trim();
-  if (v === 'ok') return 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30';
-  if (v === 'x') return 'bg-red-500/15 text-red-500 border-red-500/30';
-  if (v === 'na' || v === 'n/a') return 'bg-gray-500/15 text-gray-500 border-gray-500/30';
-  return 'bg-amber-500/15 text-amber-500 border-amber-500/30';
-};
+function controleToRow(p: ProcessoControle) {
+  return {
+    id: p.id,
+    numero: p.numero,
+    segurado: p.segurado,
+    seguradora: p.seguradora,
+    conducao: p.conducao,
+    recebimento: p.recebimento,
+    tipo_evento: p.tipoEvento,
+    mercadoria: p.mercadoria,
+    preliminar: p.preliminar,
+    email: p.email,
+    custos: p.custos,
+    salvados: p.salvados,
+    fin_central: p.finCentral,
+    cobranca_docs: p.cobrancaDocs,
+    decurso: p.decurso,
+    origem_pdf: p.origemPdf || false,
+    updated_at: new Date().toISOString(),
+  };
+}
 
-const calcularProgresso = (p: ProcessoControle) => {
-  const campos = ['preliminar', 'email', 'custos', 'salvados', 'cobrancaDocs', 'finCentral'];
-  let concluidos = 0;
-  campos.forEach(c => {
-    const val = (p[c as keyof ProcessoControle] as string)?.toLowerCase().trim();
-    if (val && val !== 'pendente' && val !== 'x') concluidos++;
-  });
-  return Math.round((concluidos / campos.length) * 100);
-};
+function InlineEdit({
+  value,
+  onChange,
+  className,
+  isStatus,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  className?: string;
+  isStatus?: boolean;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-// ==========================================
-// COMPONENTE PRINCIPAL
-// ==========================================
+  useEffect(() => { setDraft(value); }, [value]);
+  useEffect(() => {
+    if (editing) inputRef.current?.focus();
+  }, [editing]);
+
+  const commit = () => {
+    setEditing(false);
+    if (draft !== value) onChange(draft);
+  };
+
+  if (editing) {
+    return (
+      <Input
+        ref={inputRef}
+        value={draft}
+        onChange={e => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={e => {
+          if (e.key === 'Enter') commit();
+          if (e.key === 'Escape') { setDraft(value); setEditing(false); }
+        }}
+        className={cn('h-7 text-xs px-1.5 min-w-[60px]', isStatus && 'w-[72px]', className)}
+      />
+    );
+  }
+
+  const display = value || '\u2014';
+  const statusColor = isStatus
+    ? value.toLowerCase() === 'ok'
+      ? 'text-emerald-600 dark:text-emerald-400 font-semibold'
+      : value.toLowerCase() === 'pendente'
+        ? 'text-amber-600 dark:text-amber-400'
+        : ''
+    : '';
+
+  return (
+    <span
+      onDoubleClick={() => setEditing(true)}
+      className={cn(
+        'cursor-pointer text-xs px-1 py-0.5 rounded hover:bg-muted/60 transition-colors inline-block min-w-[40px]',
+        !value && 'text-muted-foreground',
+        statusColor,
+        className
+      )}
+      title="Duplo clique para editar"
+    >
+      {display}
+    </span>
+  );
+}
+
+function ControleTableSkeleton() {
+  return (
+    <Card>
+      <CardContent className="p-0">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                {Array.from({ length: 10 }).map((_, i) => (
+                  <TableHead key={i}><Skeleton className="h-4 w-16" /></TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <TableRow key={i}>
+                  {Array.from({ length: 10 }).map((_, j) => (
+                    <TableCell key={j}><Skeleton className="h-4 w-16" /></TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function ControleProcessos() {
   const [processos, setProcessos] = useState<ProcessoControle[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [processandoPdf, setProcessandoPdf] = useState(false);
-  const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
-  const [filtroAtivo, setFiltroAtivo] = useState<string>('Todos');
+  const [pdfErro, setPdfErro] = useState<string | null>(null);
+  const [ultimosImportados, setUltimosImportados] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Form
-  const [form, setForm] = useState({ numero: '', segurado: '', seguradora: '', conducao: '', recebimento: '', tipoEvento: '', mercadoria: '' });
+  // Form state for manual add
+  const [formNumero, setFormNumero] = useState('');
+  const [formSegurado, setFormSegurado] = useState('');
+  const [formSeguradora, setFormSeguradora] = useState('');
+  const [formConducao, setFormConducao] = useState('');
+  const [formRecebimento, setFormRecebimento] = useState('');
+  const [formTipoEvento, setFormTipoEvento] = useState('');
+  const [formMercadoria, setFormMercadoria] = useState('');
 
-  // Carregar dados
   useEffect(() => {
     loadProcessos();
   }, []);
 
   async function loadProcessos() {
-    const { data, error } = await supabase.from('processos_controle').select('*').order('created_at', { ascending: false });
+    const { data, error } = await supabase
+      .from('processos_controle')
+      .select('*')
+      .order('created_at', { ascending: false });
+
     if (!error && data) {
-      setProcessos(data.map(r => ({
-        id: r.id, numero: r.numero || '', segurado: r.segurado || '', seguradora: r.seguradora || '',
-        conducao: r.conducao || '', recebimento: r.recebimento || '', tipoEvento: r.tipo_evento || '',
-        mercadoria: r.mercadoria || '', preliminar: r.preliminar || '', email: r.email || '',
-        custos: r.custos || '', salvados: r.salvados || '', finCentral: r.fin_central || '',
-        cobrancaDocs: r.cobranca_docs || '', decurso: r.decurso || '', origemPdf: r.origem_pdf || false
-      })));
+      setProcessos(data.map(r => rowToControle(r as Record<string, unknown>)));
     }
     setLoading(false);
   }
 
-  const updateField = async (id: string, field: EditableField, value: string) => {
+  const updateField = useCallback(async (id: string, field: EditableField, value: string) => {
     setProcessos(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
-    const snakeField = field === 'tipoEvento' ? 'tipo_evento' : field === 'finCentral' ? 'fin_central' : field === 'cobrancaDocs' ? 'cobranca_docs' : field;
-    await supabase.from('processos_controle').update({ [snakeField]: value, updated_at: new Date().toISOString() }).eq('id', id);
+
+    const snakeField = field === 'tipoEvento' ? 'tipo_evento'
+      : field === 'finCentral' ? 'fin_central'
+      : field === 'cobrancaDocs' ? 'cobranca_docs'
+      : field === 'origemPdf' ? 'origem_pdf'
+      : field;
+
+    await supabase
+      .from('processos_controle')
+      .update({ [snakeField]: value, updated_at: new Date().toISOString() })
+      .eq('id', id);
+  }, []);
+
+  const handleAddManual = async () => {
+    if (!formNumero.trim()) {
+      toast.error('Informe o numero do processo');
+      return;
+    }
+
+    const newItem: ProcessoControle = {
+      id: nanoid(),
+      numero: formNumero,
+      segurado: formSegurado,
+      seguradora: formSeguradora,
+      conducao: formConducao,
+      recebimento: formRecebimento,
+      tipoEvento: formTipoEvento,
+      mercadoria: formMercadoria,
+      preliminar: '',
+      email: '',
+      custos: '',
+      salvados: '',
+      finCentral: '',
+      cobrancaDocs: '',
+      decurso: '',
+      origemPdf: false,
+    };
+
+    await supabase.from('processos_controle').insert(controleToRow(newItem));
+    setProcessos(prev => [newItem, ...prev]);
+
+    setFormNumero('');
+    setFormSegurado('');
+    setFormSeguradora('');
+    setFormConducao('');
+    setFormRecebimento('');
+    setFormTipoEvento('');
+    setFormMercadoria('');
+    setShowAddDialog(false);
+    toast.success('Processo adicionado');
   };
 
-  // Lógica do PDF
+  const handleDelete = async (id: string) => {
+    setProcessos(prev => prev.filter(p => p.id !== id));
+    await supabase.from('processos_controle').delete().eq('id', id);
+    toast.success('Processo removido');
+  };
+
   const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
     setProcessandoPdf(true);
-    let processosAtualizados = [...processos];
+    setPdfErro(null);
+    setUltimosImportados([]);
 
     try {
-      const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "SUA_CHAVE_AQUI";
-      const genAI = new GoogleGenerativeAI(API_KEY);
-      const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
-
-      for (const file of files) {
-        try {
-          const arrayBuffer = await file.arrayBuffer();
-          const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-          const imageParts = [];
-          for (let i = 1; i <= pdf.numPages; i++) {
-            const page = await pdf.getPage(i);
-            const viewport = page.getViewport({ scale: 2.0 });
-            const canvas = document.createElement('canvas');
-            const context = canvas.getContext('2d');
-            if (!context) continue;
-            canvas.height = viewport.height; canvas.width = viewport.width;
-            await page.render({ canvasContext: context, viewport }).promise;
-            imageParts.push({ inlineData: { data: canvas.toDataURL('image/jpeg', 0.8).split(',')[1], mimeType: "image/jpeg" } });
-          }
-
-          const promptText = `Você é um assistente da Wagner Reguladora. Analise as imagens do aviso preliminar. Retorne APENAS um JSON: { "numero": "...", "segurado": "...", "seguradora": "...", "conducao": "1º nome", "recebimento": "DD/MM/AAAA", "tipoEvento": "Atendimento ou Vistoria", "mercadoria": "..." }. Se vazio, use "".`;
-          const result = await model.generateContent([promptText, ...imageParts]);
-          const dados = JSON.parse(result.response.text().replace(/```json/g, '').replace(/```/g, '').trim());
-
-          const novo: ProcessoControle = {
-            id: crypto.randomUUID(), numero: dados.numero || `PDF-${Date.now()}`,
-            segurado: dados.segurado || '', seguradora: dados.seguradora || '', conducao: dados.conducao || '',
-            recebimento: dados.recebimento || new Date().toLocaleDateString('pt-BR'), tipoEvento: dados.tipoEvento || '',
-            mercadoria: dados.mercadoria || '', preliminar: '', email: '', custos: '', salvados: '', finCentral: '', cobrancaDocs: '', decurso: '', origemPdf: true
-          };
-
-          if (!processosAtualizados.some(p => p.numero === novo.numero)) {
-            await supabase.from('processos_controle').insert({
-              id: novo.id, numero: novo.numero, segurado: novo.segurado, seguradora: novo.seguradora, conducao: novo.conducao,
-              recebimento: novo.recebimento, tipo_evento: novo.tipoEvento, mercadoria: novo.mercadoria, origem_pdf: true
-            });
-            processosAtualizados.push(novo);
-          }
-        } catch (err) {
-          console.error(err);
-        }
+      const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      if (!geminiKey) {
+        throw new Error('VITE_GEMINI_API_KEY nao configurada');
       }
-      setProcessos(processosAtualizados);
-      toast.success("Importação concluída");
+
+      const genAI = new GoogleGenerativeAI(geminiKey);
+      const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
+
+      const imported: string[] = [];
+      const duplicados: string[] = [];
+      const newProcessos: ProcessoControle[] = [];
+      let processosAtualizados = [...processos];
+
+      for (const file of Array.from(files)) {
+        if (file.type !== 'application/pdf') {
+          setPdfErro(`Arquivo "${file.name}" nao e um PDF`);
+          setProcessandoPdf(false);
+          return;
+        }
+
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+        const imageParts: { inlineData: { data: string; mimeType: string } }[] = [];
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const viewport = page.getViewport({ scale: 2.0 });
+          const canvas = document.createElement('canvas');
+          const context = canvas.getContext('2d');
+          if (!context) continue;
+          canvas.height = viewport.height;
+          canvas.width = viewport.width;
+          await page.render({ canvasContext: context, viewport }).promise;
+          const base64Image = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+          imageParts.push({
+            inlineData: {
+              data: base64Image,
+              mimeType: 'image/jpeg',
+            },
+          });
+        }
+
+        if (imageParts.length === 0) {
+          toast.error(`Nao foi possivel renderizar "${file.name}"`);
+          continue;
+        }
+
+        const promptFinal = `Voce e um assistente da Wagner Reguladora. Analise estas imagens de um aviso preliminar escaneado. Extraia os dados e retorne EXCLUSIVAMENTE um objeto JSON valido (sem formatacao markdown): { "numero": "numero do processo (ex: 202610.1234.01)", "segurado": "nome do segurado", "seguradora": "nome da seguradora", "conducao": "Apenas o primeiro nome do regulador", "recebimento": "data no formato DD/MM/AAAA", "tipoEvento": "Atendimento ou Vistoria", "mercadoria": "tipo de mercadoria" }. Valores nao encontrados devem ser "".`;
+
+        const result = await model.generateContent([promptFinal, ...imageParts]);
+
+        const textoResposta = result.response.text();
+        const jsonLimpo = textoResposta.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+
+        let d: Record<string, string>;
+        try {
+          d = JSON.parse(jsonLimpo);
+        } catch {
+          toast.error(`Erro ao interpretar resposta para "${file.name}"`);
+          continue;
+        }
+
+        const numero = d.numero || '';
+
+        if (numero && processosAtualizados.some(p => p.numero === numero)) {
+          duplicados.push(numero);
+          continue;
+        }
+
+        const newItem: ProcessoControle = {
+          id: nanoid(),
+          numero,
+          segurado: d.segurado || '',
+          seguradora: d.seguradora || '',
+          conducao: d.conducao || '',
+          recebimento: d.recebimento || '',
+          tipoEvento: d.tipoEvento || '',
+          mercadoria: d.mercadoria || '',
+          preliminar: '',
+          email: '',
+          custos: '',
+          salvados: '',
+          finCentral: '',
+          cobrancaDocs: '',
+          decurso: '',
+          origemPdf: true,
+        };
+
+        await supabase.from('processos_controle').insert(controleToRow(newItem));
+        newProcessos.push(newItem);
+        processosAtualizados = [newItem, ...processosAtualizados];
+        imported.push(numero || file.name);
+      }
+
+      if (duplicados.length > 0) {
+        toast.warning(`${duplicados.length} processo(s) duplicado(s) ignorado(s): ${duplicados.join(', ')}`);
+      }
+
+      if (newProcessos.length > 0) {
+        setProcessos(prev => [...newProcessos, ...prev]);
+        setUltimosImportados(imported);
+        toast.success(`${newProcessos.length} processo(s) importado(s) via IA`);
+      }
     } catch (err) {
-      toast.error("Erro na API do Google");
+      setPdfErro(String(err instanceof Error ? err.message : err));
     } finally {
       setProcessandoPdf(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
-  // Motor de Alertas e Metas
-  const hoje = new Date();
-  const processosFiltrados = useMemo(() => {
-    let filtrados = processos;
-    if (filtroAtivo === 'Vencendo Hoje') {
-      filtrados = processos.filter(p => {
-        const prazos = calcularPrazos(p.recebimento);
-        return isToday(prazos.preliminar) || isToday(prazos.cobrancaDocs) || isToday(prazos.finCentral);
-      });
-    } else if (filtroAtivo === 'Pendente docs') {
-      filtrados = processos.filter(p => !p.cobrancaDocs || p.cobrancaDocs.toLowerCase() === 'pendente');
-    } else if (filtroAtivo === 'Salvados pendentes') {
-      filtrados = processos.filter(p => p.salvados.toLowerCase() === 'pendente' || !p.salvados);
-    } else if (filtroAtivo === 'Custos X') {
-      filtrados = processos.filter(p => p.custos.toLowerCase() === 'x');
-    }
-    return filtrados;
-  }, [processos, filtroAtivo]);
-
-  const stats = useMemo(() => {
-    const ativos = processos.filter(p => p.finCentral?.toLowerCase() !== 'ok' && p.finCentral?.toLowerCase() !== 'na');
-    const finalizados = processos.length - ativos.length;
-    const alertas = processos.filter(p => {
-      const pz = calcularPrazos(p.recebimento);
-      return (isPast(pz.finCentral) && p.finCentral?.toLowerCase() !== 'ok') || p.custos.toLowerCase() === 'x' || p.salvados.toLowerCase() === 'x';
-    });
-    return { ativos: ativos.length, finalizados, meta: 50, alertas: alertas.length };
-  }, [processos]);
-
   return (
-    <div className="p-6 max-w-[1600px] mx-auto space-y-6 animate-in fade-in duration-500">
-      
-      {/* HEADER COCKPIT */}
-      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-3">
-            <Target className="w-8 h-8 text-violet-500" />
-            Centro de Controle Inteligente
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <ClipboardList className="w-6 h-6 text-primary" />
+            Controle de Processos
           </h1>
-          <p className="text-muted-foreground mt-1 text-sm">Cockpit operacional - Wagner Reguladora</p>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {processos.length} processo(s) cadastrado(s)
+          </p>
         </div>
-        
-        <div className="flex items-center gap-3">
-          <div className="bg-muted/50 p-1 rounded-lg flex items-center">
-            <Button variant={viewMode === 'list' ? 'secondary' : 'ghost'} size="sm" onClick={() => setViewMode('list')}><List className="w-4 h-4 mr-2"/> Lista</Button>
-            <Button variant={viewMode === 'kanban' ? 'secondary' : 'ghost'} size="sm" onClick={() => setViewMode('kanban')}><LayoutGrid className="w-4 h-4 mr-2"/> Kanban</Button>
-          </div>
-          <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={processandoPdf} className="border-violet-500/30 text-violet-400 hover:bg-violet-500/10">
-            {processandoPdf ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileUp className="w-4 h-4 mr-2" />} Importar PDF
+        <div className="flex gap-2 flex-wrap">
+          <Button onClick={() => setShowAddDialog(true)} className="gap-1.5">
+            <Plus className="w-4 h-4" /> Adicionar Processo
           </Button>
-          <input ref={fileInputRef} type="file" accept=".pdf" className="hidden" onChange={handlePdfUpload} multiple />
+          <Button
+            variant="outline"
+            className="gap-1.5"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={processandoPdf}
+          >
+            {processandoPdf ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <FileUp className="w-4 h-4" />
+            )}
+            Importar PDF (Aviso Preliminar)
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf"
+            multiple
+            className="hidden"
+            onChange={handlePdfUpload}
+          />
         </div>
       </div>
 
-      {/* MINI-PAINEL DE METAS */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-card/40 backdrop-blur-sm border-border/50">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 bg-blue-500/10 rounded-xl"><ClipboardList className="w-6 h-6 text-blue-500" /></div>
-            <div><p className="text-sm text-muted-foreground">Processos Ativos</p><h3 className="text-2xl font-bold">{stats.ativos}</h3></div>
-          </CardContent>
-        </Card>
-        <Card className="bg-card/40 backdrop-blur-sm border-border/50">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 bg-emerald-500/10 rounded-xl"><CheckCircle2 className="w-6 h-6 text-emerald-500" /></div>
-            <div><p className="text-sm text-muted-foreground">Finalizados (Mês)</p><h3 className="text-2xl font-bold">{stats.finalizados}</h3></div>
-          </CardContent>
-        </Card>
-        <Card className="bg-card/40 backdrop-blur-sm border-border/50 md:col-span-2">
-          <CardContent className="p-4 flex flex-col justify-center h-full space-y-2">
-            <div className="flex justify-between items-center text-sm">
-              <span className="text-muted-foreground">Meta Mensal ({stats.meta})</span>
-              <span className="font-bold text-emerald-500">{Math.round((stats.finalizados / stats.meta) * 100)}%</span>
+      {/* Status banners */}
+      {processandoPdf && (
+        <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-900">
+          <CardContent className="py-3 px-4 flex items-center gap-3">
+            <Loader2 className="w-5 h-5 text-blue-600 animate-spin flex-shrink-0" />
+            <div>
+              <p className="font-medium text-blue-900 dark:text-blue-300 text-sm">Processando PDF com Inteligencia Artificial...</p>
+              <p className="text-xs text-blue-700 dark:text-blue-400 mt-0.5">Os dados serao extraidos automaticamente</p>
             </div>
-            <Progress value={(stats.finalizados / stats.meta) * 100} className="h-2 bg-muted/50 [&>div]:bg-emerald-500" />
           </CardContent>
         </Card>
-      </div>
-
-      {/* ALERTAS INTELIGENTES */}
-      {stats.alertas > 0 && (
-        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-red-500 mt-0.5" />
-          <div>
-            <h4 className="font-semibold text-red-500 text-sm">Atenção Necessária</h4>
-            <p className="text-sm text-red-400/80">Você tem {stats.alertas} processo(s) com prazos vencidos ou itens críticos marcados com "X". Verifique a lista.</p>
-          </div>
-        </div>
       )}
 
-      {/* FILTROS */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-        <Filter className="w-4 h-4 text-muted-foreground mr-2" />
-        {['Todos', 'Vencendo Hoje', 'Pendente docs', 'Salvados pendentes', 'Custos X'].map(f => (
-          <Badge 
-            key={f} 
-            variant="outline" 
-            className={cn("cursor-pointer px-3 py-1.5 whitespace-nowrap", filtroAtivo === f ? "bg-primary text-primary-foreground border-primary" : "bg-card hover:bg-muted")}
-            onClick={() => setFiltroAtivo(f)}
-          >
-            {f}
-          </Badge>
-        ))}
-      </div>
+      {pdfErro && (
+        <Card className="border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-900">
+          <CardContent className="py-3 px-4 flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="font-medium text-red-900 dark:text-red-300 text-sm">Erro na importacao</p>
+              <p className="text-xs text-red-700 dark:text-red-400 mt-0.5">{pdfErro}</p>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => setPdfErro(null)} className="text-red-600">
+              Fechar
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
-      {/* CONTEÚDO (LISTA/KANBAN) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {processosFiltrados.map(p => {
-          const progresso = calcularProgresso(p);
-          const prazos = calcularPrazos(p.recebimento);
-          const diasFaltando = differenceInDays(prazos.finCentral, hoje);
-          
-          let borderColor = "border-border/40";
-          if (p.finCentral?.toLowerCase() !== 'ok') {
-            if (diasFaltando < 0) borderColor = "border-red-500/50 shadow-[0_0_15px_-3px_rgba(239,68,68,0.2)]";
-            else if (diasFaltando <= 2) borderColor = "border-amber-500/50 shadow-[0_0_15px_-3px_rgba(245,158,11,0.2)]";
-          }
+      {ultimosImportados.length > 0 && !processandoPdf && (
+        <Card className="border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 dark:border-emerald-900">
+          <CardContent className="py-3 px-4 flex items-center gap-3">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="font-medium text-emerald-900 dark:text-emerald-300 text-sm">
+                {ultimosImportados.length} processo(s) importado(s) com sucesso
+              </p>
+              <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-0.5">
+                {ultimosImportados.join(', ')}
+              </p>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => setUltimosImportados([])} className="text-emerald-600">
+              Fechar
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
-          return (
-            <Card key={p.id} className={cn("bg-card/50 backdrop-blur-sm transition-all hover:border-primary/50 group", borderColor)}>
-              <CardContent className="p-5">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="font-mono font-bold text-lg text-primary">{p.numero}</h3>
-                    <p className="text-sm font-medium text-foreground truncate max-w-[200px]">{p.segurado}</p>
-                    <p className="text-xs text-muted-foreground">{p.seguradora}</p>
-                  </div>
-                  <Badge variant="secondary" className="text-[10px]">{p.tipoEvento}</Badge>
-                </div>
+      {/* Table */}
+      {loading ? (
+        <ControleTableSkeleton />
+      ) : processos.length === 0 ? (
+        <Card>
+          <CardContent className="py-16 flex flex-col items-center gap-3">
+            <ClipboardList className="w-12 h-12 text-muted-foreground/40" />
+            <p className="text-muted-foreground text-sm">Nenhum processo cadastrado</p>
+            <p className="text-xs text-muted-foreground">Adicione manualmente ou importe um PDF</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[130px] sticky left-0 bg-card z-10">Numero</TableHead>
+                    <TableHead className="min-w-[120px]">Segurado</TableHead>
+                    <TableHead className="min-w-[120px]">Seguradora</TableHead>
+                    <TableHead className="min-w-[80px]">Conducao</TableHead>
+                    <TableHead className="min-w-[90px]">Recebimento</TableHead>
+                    <TableHead className="min-w-[80px]">Tipo</TableHead>
+                    <TableHead className="min-w-[100px]">Mercadoria</TableHead>
+                    {STATUS_COLUMNS.map(col => (
+                      <TableHead key={col.key} className="min-w-[72px] text-center">
+                        <span className="hidden lg:inline">{col.label}</span>
+                        <span className="lg:hidden">{col.short}</span>
+                      </TableHead>
+                    ))}
+                    <TableHead className="w-[50px]" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {processos.map(p => (
+                    <TableRow key={p.id} className="group hover:bg-muted/30">
+                      <TableCell className="sticky left-0 bg-card z-10 group-hover:bg-muted/30">
+                        <div className="flex items-center gap-1.5">
+                          {p.origemPdf && (
+                            <Tooltip>
+                              <TooltipTrigger>
+                                <Sparkles className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+                              </TooltipTrigger>
+                              <TooltipContent>Importado via IA</TooltipContent>
+                            </Tooltip>
+                          )}
+                          <InlineEdit
+                            value={p.numero}
+                            onChange={v => updateField(p.id, 'numero', v)}
+                            className="font-mono font-medium text-primary"
+                          />
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <InlineEdit value={p.segurado} onChange={v => updateField(p.id, 'segurado', v)} />
+                      </TableCell>
+                      <TableCell>
+                        <InlineEdit value={p.seguradora} onChange={v => updateField(p.id, 'seguradora', v)} />
+                      </TableCell>
+                      <TableCell>
+                        <InlineEdit value={p.conducao} onChange={v => updateField(p.id, 'conducao', v)} />
+                      </TableCell>
+                      <TableCell>
+                        <InlineEdit value={p.recebimento} onChange={v => updateField(p.id, 'recebimento', v)} />
+                      </TableCell>
+                      <TableCell>
+                        <InlineEdit value={p.tipoEvento} onChange={v => updateField(p.id, 'tipoEvento', v)} />
+                      </TableCell>
+                      <TableCell>
+                        <InlineEdit value={p.mercadoria} onChange={v => updateField(p.id, 'mercadoria', v)} />
+                      </TableCell>
+                      {STATUS_COLUMNS.map(col => (
+                        <TableCell key={col.key} className="text-center">
+                          <InlineEdit
+                            value={p[col.key]}
+                            onChange={v => updateField(p.id, col.key, v)}
+                            isStatus
+                          />
+                        </TableCell>
+                      ))}
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <MoreVertical className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => handleDelete(p.id)}
+                              className="gap-2 text-red-600"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" /> Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-                {/* Status Rápidos */}
-                <div className="flex gap-2 mb-4">
-                  <div className={cn("text-[10px] px-2 py-1 rounded-md border font-medium flex-1 text-center", getStatusColor(p.custos))}>
-                    Custos: {p.custos || 'N/A'}
-                  </div>
-                  <div className={cn("text-[10px] px-2 py-1 rounded-md border font-medium flex-1 text-center", getStatusColor(p.salvados))}>
-                    Salvados: {p.salvados || 'N/A'}
-                  </div>
-                </div>
-
-                {/* Progress Checklist */}
-                <div className="space-y-1.5 mb-4">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground">Checklist</span>
-                    <span className="font-bold">{progresso}%</span>
-                  </div>
-                  <Progress value={progresso} className="h-1.5 bg-muted" />
-                </div>
-
-                {/* Engine de Prazos */}
-                <div className="pt-3 border-t border-border/50 grid grid-cols-2 gap-2 text-xs">
-                  <div className="flex items-center gap-1.5 text-muted-foreground">
-                    <Calendar className="w-3.5 h-3.5" /> Rec: {p.recebimento}
-                  </div>
-                  <div className={cn("flex items-center gap-1.5 font-medium", diasFaltando < 0 ? "text-red-500" : diasFaltando <= 2 ? "text-amber-500" : "text-emerald-500")}>
-                    <Clock className="w-3.5 h-3.5" /> 
-                    {p.finCentral?.toLowerCase() === 'ok' ? 'Finalizado' : 
-                     diasFaltando < 0 ? `Atrasado ${Math.abs(diasFaltando)}d` : 
-                     `Prazo: ${diasFaltando} dias`}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-      
+      {/* Add Manual Dialog */}
+      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="w-5 h-5 text-primary" />
+              Adicionar Processo
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Numero do Processo *</Label>
+              <Input
+                placeholder="Ex: 2025.001234"
+                value={formNumero}
+                onChange={e => setFormNumero(e.target.value)}
+                className="font-mono"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Segurado</Label>
+              <Input
+                placeholder="Nome do segurado"
+                value={formSegurado}
+                onChange={e => setFormSegurado(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Seguradora</Label>
+              <Input
+                placeholder="Nome da seguradora"
+                value={formSeguradora}
+                onChange={e => setFormSeguradora(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Conducao</Label>
+              <Input
+                placeholder="Primeiro nome do regulador"
+                value={formConducao}
+                onChange={e => setFormConducao(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Recebimento</Label>
+              <Input
+                placeholder="DD/MM/AAAA"
+                value={formRecebimento}
+                onChange={e => setFormRecebimento(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Tipo de Evento</Label>
+              <Input
+                placeholder="Atendimento ou Vistoria"
+                value={formTipoEvento}
+                onChange={e => setFormTipoEvento(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Mercadoria</Label>
+              <Input
+                placeholder="Descricao da mercadoria"
+                value={formMercadoria}
+                onChange={e => setFormMercadoria(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowAddDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleAddManual} className="gap-1.5">
+              <Plus className="w-4 h-4" /> Adicionar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
