@@ -492,8 +492,8 @@ export default function ControleProcessos() {
     setPdfErro(null);
     setUltimosImportados([]);
 
-    try {
-      const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
+     try {
+      const geminiKey = "AIzaSyDCtjKce8C4fvisuHkNGCEwUt0qyaIonyE"; // 
       if (!geminiKey) {
         throw new Error('VITE_GEMINI_API_KEY nao configurada');
       }
