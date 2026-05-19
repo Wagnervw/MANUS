@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useLocation } from 'wouter';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Dialog,
@@ -32,13 +33,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Plus, FileUp, Loader as Loader2, Sparkles, Trash2, MoveVertical as MoreVertical, CircleAlert as AlertCircle, CircleCheck as CheckCircle2, ClipboardList, ExternalLink } from 'lucide-react';
+import { Plus, FileUp, Loader as Loader2, Sparkles, Trash2, MoveVertical as MoreVertical, CircleAlert as AlertCircle, CircleCheck as CheckCircle2, ClipboardList, ExternalLink, TriangleAlert as AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.mjs',
   import.meta.url
 ).toString();
+
+// ==========================================
+// TYPES
+// ==========================================
 
 export interface ProcessoControle {
   id: string;
@@ -47,6 +52,7 @@ export interface ProcessoControle {
   seguradora: string;
   conducao: string;
   recebimento: string;
+  aberturaSinistro: string;
   tipoEvento: string;
   mercadoria: string;
   preliminar: string;
@@ -61,31 +67,47 @@ export interface ProcessoControle {
 
 type EditableField = keyof Omit<ProcessoControle, 'id' | 'origemPdf'>;
 
-const TABLE_COLUMNS: { key: EditableField; label: string; minW: string }[] = [
+// ==========================================
+// COLUMNS CONFIG
+// ==========================================
+
+const INLINE_EDIT_COLUMNS: { key: EditableField; label: string; minW: string }[] = [
   { key: 'numero', label: 'N\u00B0 Processo', minW: 'min-w-[130px]' },
   { key: 'segurado', label: 'Segurado', minW: 'min-w-[140px]' },
   { key: 'seguradora', label: 'Seguradora', minW: 'min-w-[130px]' },
   { key: 'conducao', label: 'Condu\u00E7\u00E3o', minW: 'min-w-[100px]' },
   { key: 'recebimento', label: 'Recebimento', minW: 'min-w-[100px]' },
-  { key: 'preliminar', label: 'Preliminar', minW: 'min-w-[80px]' },
-  { key: 'email', label: 'E-mail', minW: 'min-w-[80px]' },
-  { key: 'custos', label: 'Custos', minW: 'min-w-[80px]' },
-  { key: 'salvados', label: 'Salvados', minW: 'min-w-[80px]' },
+  { key: 'aberturaSinistro', label: 'Abertura do Sinistro', minW: 'min-w-[130px]' },
   { key: 'tipoEvento', label: 'Tipo de Evento', minW: 'min-w-[110px]' },
   { key: 'mercadoria', label: 'Mercadoria', minW: 'min-w-[110px]' },
 ];
 
-const STATUS_FIELDS = new Set<EditableField>([
-  'preliminar',
-  'email',
-  'custos',
-  'salvados',
-]);
+type StatusOption = 'Enviado' | 'Pendente' | 'N/A';
+const TWO_OPTION_VALUES: StatusOption[] = ['Enviado', 'Pendente'];
+const THREE_OPTION_VALUES: StatusOption[] = ['Enviado', 'Pendente', 'N/A'];
+
+interface StatusColumnDef {
+  key: EditableField;
+  label: string;
+  options: StatusOption[];
+}
+
+const STATUS_COLUMNS: StatusColumnDef[] = [
+  { key: 'preliminar', label: 'Preliminar', options: TWO_OPTION_VALUES },
+  { key: 'email', label: 'E-mail', options: TWO_OPTION_VALUES },
+  { key: 'custos', label: 'Custos', options: TWO_OPTION_VALUES },
+  { key: 'salvados', label: 'Salvados', options: THREE_OPTION_VALUES },
+];
+
+// ==========================================
+// HELPERS
+// ==========================================
 
 function fieldToSnake(field: EditableField): string {
   if (field === 'tipoEvento') return 'tipo_evento';
   if (field === 'finCentral') return 'fin_central';
   if (field === 'cobrancaDocs') return 'cobranca_docs';
+  if (field === 'aberturaSinistro') return 'abertura_sinistro';
   return field;
 }
 
@@ -97,6 +119,7 @@ function rowToControle(row: Record<string, unknown>): ProcessoControle {
     seguradora: (row.seguradora as string) || '',
     conducao: (row.conducao as string) || '',
     recebimento: (row.recebimento as string) || '',
+    aberturaSinistro: (row.abertura_sinistro as string) || '',
     tipoEvento: (row.tipo_evento as string) || '',
     mercadoria: (row.mercadoria as string) || '',
     preliminar: (row.preliminar as string) || '',
@@ -118,6 +141,7 @@ function controleToRow(p: ProcessoControle) {
     seguradora: p.seguradora,
     conducao: p.conducao,
     recebimento: p.recebimento,
+    abertura_sinistro: p.aberturaSinistro,
     tipo_evento: p.tipoEvento,
     mercadoria: p.mercadoria,
     preliminar: p.preliminar,
@@ -132,16 +156,41 @@ function controleToRow(p: ProcessoControle) {
   };
 }
 
+function parseDataBr(dateStr: string): Date | null {
+  if (!dateStr) return null;
+  const parts = dateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (parts) {
+    return new Date(Number(parts[3]), Number(parts[2]) - 1, Number(parts[1]));
+  }
+  const isoDate = new Date(dateStr);
+  return isNaN(isoDate.getTime()) ? null : isoDate;
+}
+
+function daysBetween(from: Date, to: Date): number {
+  const diffMs = to.getTime() - from.getTime();
+  return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+}
+
+function statusBadgeClasses(value: string): string {
+  const v = value.toLowerCase().trim();
+  if (v === 'enviado') return 'bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-900/40 dark:text-emerald-300 dark:border-emerald-700';
+  if (v === 'pendente') return 'bg-red-100 text-red-700 border-red-300 dark:bg-red-900/40 dark:text-red-300 dark:border-red-700';
+  if (v === 'n/a') return 'bg-purple-100 text-purple-700 border-purple-300 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-700';
+  return 'bg-muted text-muted-foreground border-border';
+}
+
+// ==========================================
+// INLINE EDIT (text fields)
+// ==========================================
+
 function InlineEdit({
   value,
   onChange,
   className,
-  isStatus,
 }: {
   value: string;
   onChange: (v: string) => void;
   className?: string;
-  isStatus?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
@@ -176,25 +225,10 @@ function InlineEdit({
             setEditing(false);
           }
         }}
-        className={cn(
-          'h-7 text-xs px-1.5 min-w-[60px]',
-          isStatus && 'w-[72px]',
-          className
-        )}
+        className={cn('h-7 text-xs px-1.5 min-w-[60px]', className)}
       />
     );
   }
-
-  const display = value || '\u2014';
-  const statusColor = isStatus
-    ? value.toLowerCase() === 'ok'
-      ? 'text-emerald-600 dark:text-emerald-400 font-semibold'
-      : value.toLowerCase() === 'pendente'
-        ? 'text-amber-600 dark:text-amber-400'
-        : value.toLowerCase() === 'x'
-          ? 'text-red-600 dark:text-red-400 font-semibold'
-          : ''
-    : '';
 
   return (
     <span
@@ -202,15 +236,96 @@ function InlineEdit({
       className={cn(
         'cursor-pointer text-xs px-1 py-0.5 rounded hover:bg-muted/60 transition-colors inline-block min-w-[40px]',
         !value && 'text-muted-foreground',
-        statusColor,
         className
       )}
       title="Clique para editar"
     >
-      {display}
+      {value || '\u2014'}
     </span>
   );
 }
+
+// ==========================================
+// STATUS SELECTOR (Enviado / Pendente / N/A)
+// ==========================================
+
+function StatusSelector({
+  value,
+  options,
+  onChange,
+}: {
+  value: string;
+  options: StatusOption[];
+  onChange: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  const currentLabel = value || '\u2014';
+  const hasValue = options.some(
+    (o) => o.toLowerCase() === value.toLowerCase().trim()
+  );
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className={cn(
+          'text-[11px] font-semibold px-2.5 py-1 rounded-md border cursor-pointer transition-all select-none whitespace-nowrap',
+          hasValue
+            ? statusBadgeClasses(value)
+            : 'bg-muted/50 text-muted-foreground border-border hover:bg-muted'
+        )}
+      >
+        {currentLabel}
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute top-full left-0 mt-1 z-50 bg-popover border border-border rounded-lg shadow-lg py-1 min-w-[100px]">
+            {options.map((opt) => (
+              <button
+                key={opt}
+                onClick={() => {
+                  onChange(opt);
+                  setOpen(false);
+                }}
+                className={cn(
+                  'w-full text-left px-3 py-1.5 text-xs font-medium hover:bg-muted transition-colors flex items-center gap-2',
+                  value.toLowerCase() === opt.toLowerCase() && 'bg-muted'
+                )}
+              >
+                <span
+                  className={cn(
+                    'w-2 h-2 rounded-full flex-shrink-0',
+                    opt === 'Enviado' && 'bg-emerald-500',
+                    opt === 'Pendente' && 'bg-red-500',
+                    opt === 'N/A' && 'bg-purple-500'
+                  )}
+                />
+                {opt}
+              </button>
+            ))}
+            {value && (
+              <button
+                onClick={() => {
+                  onChange('');
+                  setOpen(false);
+                }}
+                className="w-full text-left px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted transition-colors border-t border-border mt-1 pt-1.5"
+              >
+                Limpar
+              </button>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ==========================================
+// SKELETON
+// ==========================================
 
 function ControleTableSkeleton() {
   return (
@@ -220,7 +335,7 @@ function ControleTableSkeleton() {
           <Table>
             <TableHeader>
               <TableRow>
-                {Array.from({ length: 12 }).map((_, i) => (
+                {Array.from({ length: 14 }).map((_, i) => (
                   <TableHead key={i}>
                     <Skeleton className="h-4 w-16" />
                   </TableHead>
@@ -230,7 +345,7 @@ function ControleTableSkeleton() {
             <TableBody>
               {Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  {Array.from({ length: 12 }).map((_, j) => (
+                  {Array.from({ length: 14 }).map((_, j) => (
                     <TableCell key={j}>
                       <Skeleton className="h-4 w-16" />
                     </TableCell>
@@ -244,6 +359,10 @@ function ControleTableSkeleton() {
     </Card>
   );
 }
+
+// ==========================================
+// MAIN COMPONENT
+// ==========================================
 
 export default function ControleProcessos() {
   const [, navigate] = useLocation();
@@ -260,6 +379,7 @@ export default function ControleProcessos() {
   const [formSeguradora, setFormSeguradora] = useState('');
   const [formConducao, setFormConducao] = useState('');
   const [formRecebimento, setFormRecebimento] = useState('');
+  const [formAberturaSinistro, setFormAberturaSinistro] = useState('');
   const [formTipoEvento, setFormTipoEvento] = useState('');
   const [formMercadoria, setFormMercadoria] = useState('');
 
@@ -297,6 +417,26 @@ export default function ControleProcessos() {
     []
   );
 
+  // Prazo alerts: Preliminar must be sent within 2 days of aberturaSinistro
+  const alertas = useMemo(() => {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const items: { id: string; numero: string; dias: number }[] = [];
+
+    for (const p of processos) {
+      if (p.preliminar.toLowerCase() === 'enviado') continue;
+      const dtAbertura = parseDataBr(p.aberturaSinistro);
+      if (!dtAbertura) continue;
+      const prazo = new Date(dtAbertura);
+      prazo.setDate(prazo.getDate() + 2);
+      const diasRestantes = daysBetween(hoje, prazo);
+      if (diasRestantes <= 0) {
+        items.push({ id: p.id, numero: p.numero, dias: Math.abs(diasRestantes) });
+      }
+    }
+    return items;
+  }, [processos]);
+
   const handleAddManual = async () => {
     if (!formNumero.trim()) {
       toast.error('Informe o numero do processo');
@@ -310,6 +450,7 @@ export default function ControleProcessos() {
       seguradora: formSeguradora,
       conducao: formConducao,
       recebimento: formRecebimento,
+      aberturaSinistro: formAberturaSinistro,
       tipoEvento: formTipoEvento,
       mercadoria: formMercadoria,
       preliminar: '',
@@ -330,6 +471,7 @@ export default function ControleProcessos() {
     setFormSeguradora('');
     setFormConducao('');
     setFormRecebimento('');
+    setFormAberturaSinistro('');
     setFormTipoEvento('');
     setFormMercadoria('');
     setShowAddDialog(false);
@@ -374,8 +516,7 @@ export default function ControleProcessos() {
         const arrayBuffer = await file.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
 
-        const imageParts: { inlineData: { data: string; mimeType: string } }[] =
-          [];
+        const imageParts: { inlineData: { data: string; mimeType: string } }[] = [];
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
           const viewport = page.getViewport({ scale: 2.0 });
@@ -398,7 +539,7 @@ export default function ControleProcessos() {
           continue;
         }
 
-        const promptFinal = `Voce e um assistente da Wagner Reguladora. Analise estas imagens de um aviso preliminar escaneado. Extraia os dados e retorne EXCLUSIVAMENTE um objeto JSON valido (sem formatacao markdown): { "numero": "numero do processo (ex: 202610.1234.01)", "segurado": "nome do segurado", "seguradora": "nome da seguradora", "conducao": "Apenas o primeiro nome do regulador", "recebimento": "data no formato DD/MM/AAAA", "tipoEvento": "Atendimento ou Vistoria", "mercadoria": "tipo de mercadoria" }. Valores nao encontrados devem ser "".`;
+        const promptFinal = `Voce e um assistente da Wagner Reguladora. Analise estas imagens de um aviso preliminar escaneado. Extraia os dados e retorne EXCLUSIVAMENTE um objeto JSON valido (sem formatacao markdown): { "numero": "numero do processo (ex: 202610.1234.01)", "segurado": "nome do segurado", "seguradora": "nome da seguradora", "conducao": "Apenas o primeiro nome do regulador", "recebimento": "data no formato DD/MM/AAAA", "aberturaSinistro": "data e horario de abertura do sinistro no formato DD/MM/AAAA HH:MM (fica perto da palavra Preliminar no documento)", "tipoEvento": "Atendimento ou Vistoria", "mercadoria": "tipo de mercadoria" }. Valores nao encontrados devem ser "".`;
 
         const result = await model.generateContent([
           promptFinal,
@@ -436,6 +577,7 @@ export default function ControleProcessos() {
           seguradora: d.seguradora || '',
           conducao: d.conducao || '',
           recebimento: d.recebimento || '',
+          aberturaSinistro: d.aberturaSinistro || '',
           tipoEvento: d.tipoEvento || '',
           mercadoria: d.mercadoria || '',
           preliminar: '',
@@ -472,6 +614,21 @@ export default function ControleProcessos() {
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
+
+  // Check if a row has preliminar alert
+  const preliminarAtrasada = useCallback(
+    (p: ProcessoControle): boolean => {
+      if (p.preliminar.toLowerCase() === 'enviado') return false;
+      const dtAbertura = parseDataBr(p.aberturaSinistro);
+      if (!dtAbertura) return false;
+      const prazo = new Date(dtAbertura);
+      prazo.setDate(prazo.getDate() + 2);
+      const hoje = new Date();
+      hoje.setHours(0, 0, 0, 0);
+      return hoje >= prazo;
+    },
+    []
+  );
 
   return (
     <div className="space-y-6">
@@ -514,6 +671,34 @@ export default function ControleProcessos() {
           />
         </div>
       </div>
+
+      {/* Alertas de Prazo da Preliminar */}
+      {alertas.length > 0 && (
+        <Card className="border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-900">
+          <CardContent className="py-3 px-4 flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="font-semibold text-red-800 dark:text-red-300 text-sm">
+                Preliminar Atrasada -- {alertas.length} processo(s)
+              </p>
+              <p className="text-xs text-red-700 dark:text-red-400 mt-1">
+                A preliminar deve ser enviada em no maximo 2 dias apos a abertura do sinistro.
+              </p>
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {alertas.map((a) => (
+                  <Badge
+                    key={a.id}
+                    variant="outline"
+                    className="border-red-300 text-red-700 dark:text-red-300 text-[10px]"
+                  >
+                    {a.numero || 'Sem numero'} ({a.dias}d atrasado)
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Status banners */}
       {processandoPdf && (
@@ -602,15 +787,19 @@ export default function ControleProcessos() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    {TABLE_COLUMNS.map((col) => (
+                    {INLINE_EDIT_COLUMNS.map((col) => (
                       <TableHead
                         key={col.key}
                         className={cn(
                           col.minW,
-                          col.key === 'numero' &&
-                            'sticky left-0 bg-card z-10'
+                          col.key === 'numero' && 'sticky left-0 bg-card z-10'
                         )}
                       >
+                        {col.label}
+                      </TableHead>
+                    ))}
+                    {STATUS_COLUMNS.map((col) => (
+                      <TableHead key={col.key} className="min-w-[90px]">
                         {col.label}
                       </TableHead>
                     ))}
@@ -621,98 +810,121 @@ export default function ControleProcessos() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {processos.map((p) => (
-                    <TableRow
-                      key={p.id}
-                      className="group hover:bg-muted/30"
-                    >
-                      {TABLE_COLUMNS.map((col) => (
-                        <TableCell
-                          key={col.key}
-                          className={cn(
-                            col.key === 'numero' &&
-                              'sticky left-0 bg-card z-10 group-hover:bg-muted/30'
-                          )}
-                        >
-                          {col.key === 'numero' ? (
-                            <div className="flex items-center gap-1.5">
-                              {p.origemPdf && (
-                                <Tooltip>
-                                  <TooltipTrigger>
-                                    <Sparkles className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    Importado via IA
-                                  </TooltipContent>
-                                </Tooltip>
-                              )}
+                  {processos.map((p) => {
+                    const hasAlert = preliminarAtrasada(p);
+                    return (
+                      <TableRow
+                        key={p.id}
+                        className={cn(
+                          'group hover:bg-muted/30',
+                          hasAlert && 'bg-red-50/50 dark:bg-red-950/10'
+                        )}
+                      >
+                        {/* Inline-editable text columns */}
+                        {INLINE_EDIT_COLUMNS.map((col) => (
+                          <TableCell
+                            key={col.key}
+                            className={cn(
+                              col.key === 'numero' &&
+                                'sticky left-0 bg-card z-10 group-hover:bg-muted/30'
+                            )}
+                          >
+                            {col.key === 'numero' ? (
+                              <div className="flex items-center gap-1.5">
+                                {p.origemPdf && (
+                                  <Tooltip>
+                                    <TooltipTrigger>
+                                      <Sparkles className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      Importado via IA
+                                    </TooltipContent>
+                                  </Tooltip>
+                                )}
+                                <InlineEdit
+                                  value={p.numero}
+                                  onChange={(v) => updateField(p.id, 'numero', v)}
+                                  className="font-mono font-medium text-primary"
+                                />
+                                {hasAlert && (
+                                  <Tooltip>
+                                    <TooltipTrigger>
+                                      <AlertTriangle className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      Preliminar atrasada!
+                                    </TooltipContent>
+                                  </Tooltip>
+                                )}
+                              </div>
+                            ) : (
                               <InlineEdit
-                                value={p.numero}
-                                onChange={(v) =>
-                                  updateField(p.id, 'numero', v)
-                                }
-                                className="font-mono font-medium text-primary"
+                                value={p[col.key]}
+                                onChange={(v) => updateField(p.id, col.key, v)}
                               />
-                            </div>
-                          ) : (
-                            <InlineEdit
+                            )}
+                          </TableCell>
+                        ))}
+
+                        {/* Status columns with dropdowns */}
+                        {STATUS_COLUMNS.map((col) => (
+                          <TableCell key={col.key}>
+                            <StatusSelector
                               value={p[col.key]}
-                              onChange={(v) =>
-                                updateField(p.id, col.key, v)
-                              }
-                              isStatus={STATUS_FIELDS.has(col.key)}
+                              options={col.options}
+                              onChange={(v) => updateField(p.id, col.key, v)}
                             />
-                          )}
+                          </TableCell>
+                        ))}
+
+                        {/* Fin. Central -- Button that navigates */}
+                        <TableCell className="text-center">
+                          <Button
+                            variant={
+                              p.finCentral.toLowerCase() === 'ok'
+                                ? 'secondary'
+                                : 'outline'
+                            }
+                            size="sm"
+                            className={cn(
+                              'gap-1.5 text-xs h-7',
+                              p.finCentral.toLowerCase() === 'ok'
+                                ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400'
+                                : 'border-primary/40 text-primary hover:bg-primary/10'
+                            )}
+                            onClick={() => navigate(`/finalizar/${p.id}`)}
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            {p.finCentral.toLowerCase() === 'ok'
+                              ? 'Finalizado'
+                              : 'Finalizar'}
+                          </Button>
                         </TableCell>
-                      ))}
 
-                      {/* Fin. Central -- Button that navigates */}
-                      <TableCell className="text-center">
-                        <Button
-                          variant={
-                            p.finCentral.toLowerCase() === 'ok'
-                              ? 'secondary'
-                              : 'outline'
-                          }
-                          size="sm"
-                          className={cn(
-                            'gap-1.5 text-xs h-7',
-                            p.finCentral.toLowerCase() === 'ok'
-                              ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400'
-                              : 'border-primary/40 text-primary hover:bg-primary/10'
-                          )}
-                          onClick={() => navigate(`/finalizar/${p.id}`)}
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" />
-                          {p.finCentral.toLowerCase() === 'ok'
-                            ? 'Finalizado'
-                            : 'Finalizar'}
-                        </Button>
-                      </TableCell>
-
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              <MoreVertical className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() => handleDelete(p.id)}
-                              className="gap-2 text-red-600"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" /> Excluir
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <MoreVertical className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={() => handleDelete(p.id)}
+                                className="gap-2 text-red-600"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" /> Excluir
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
@@ -772,6 +984,14 @@ export default function ControleProcessos() {
               />
             </div>
             <div className="space-y-2">
+              <Label>Abertura do Sinistro</Label>
+              <Input
+                placeholder="DD/MM/AAAA HH:MM"
+                value={formAberturaSinistro}
+                onChange={(e) => setFormAberturaSinistro(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
               <Label>Tipo de Evento</Label>
               <Input
                 placeholder="Atendimento ou Vistoria"
@@ -779,7 +999,7 @@ export default function ControleProcessos() {
                 onChange={(e) => setFormTipoEvento(e.target.value)}
               />
             </div>
-            <div className="space-y-2 sm:col-span-2">
+            <div className="space-y-2">
               <Label>Mercadoria</Label>
               <Input
                 placeholder="Descricao da mercadoria"
