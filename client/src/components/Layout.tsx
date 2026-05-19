@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useTheme } from '@/contexts/ThemeContext';
-import { LayoutDashboard, FilePlus, FileText, ChartBar as BarChart3, ClipboardList, Moon, Sun, Menu, X, Shield, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, FileText, ChartBar as BarChart3, ClipboardList, Moon, Sun, Menu, X, Shield, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -9,10 +9,9 @@ const LOGO_URL = 'https://d2xsxph8kpxj0f.cloudfront.net/310519663134927829/ZdDkY
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/novo-processo', label: 'Novo Processo', icon: FilePlus },
-  { path: '/processos', label: 'Processos', icon: FileText },
   { path: '/controle', label: 'Controle', icon: ClipboardList },
-  { path: '/relatorios', label: 'Relatórios', icon: BarChart3 },
+  { path: '/processos', label: 'Processos', icon: FileText },
+  { path: '/relatorios', label: 'Relat\u00F3rios', icon: BarChart3 },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {

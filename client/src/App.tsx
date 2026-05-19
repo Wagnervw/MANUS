@@ -8,7 +8,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { ProcessosProvider } from "./contexts/SinistrosContext";
 import Layout from "./components/Layout";
-import NovoProcesso from "./pages/NovoProcesso";
+import FinalizacaoCentral from "./pages/FinalizacaoCentral";
 import Processos from "./pages/Processos";
 import DetalhesProcesso from "./pages/DetalhesProcesso";
 
@@ -39,7 +39,7 @@ function Router() {
       <Suspense fallback={<PageFallback />}>
         <Switch>
           <Route path="/" component={Dashboard} />
-          <Route path="/novo-processo" component={NovoProcesso} />
+          <Route path="/finalizar/:id" component={FinalizacaoCentral} />
           <Route path="/processos" component={Processos} />
           <Route path="/processo/:id" component={DetalhesProcesso} />
           <Route path="/controle" component={ControleProcessos} />

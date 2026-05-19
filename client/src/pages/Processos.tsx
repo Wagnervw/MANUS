@@ -105,7 +105,7 @@ export default function Processos() {
           <h1 className="text-2xl font-bold text-foreground">Processos</h1>
           <p className="text-sm text-muted-foreground mt-0.5">{filtrados.length} registro(s) encontrado(s)</p>
         </div>
-        <Link href="/novo-processo">
+        <Link href="/controle">
           <Button className="gap-1.5">
             <Plus className="w-4 h-4" /> Novo Processo
           </Button>

@@ -1,9 +1,10 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
-import { useLocation } from 'wouter';
+import { useParams, useLocation } from 'wouter';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useProcessos } from '@/contexts/SinistrosContext';
 import { generateProcessoReport } from '@/lib/generateReport';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -118,7 +119,7 @@ const stepVariants = {
   exit: (dir: number) => ({ x: dir > 0 ? -80 : 80, opacity: 0 }),
 };
 
-const DRAFT_KEY = 'wagner-novo-processo-draft';
+const DRAFT_KEY = 'wagner-finalizacao-central-draft';
 
 function extractMaxSpeed(faixa: string): number | null {
   if (!faixa || faixa === 'Não registrada' || faixa === 'Não identificada') return null;
@@ -140,13 +141,16 @@ function extractPermittedSpeed(vel: string): number | null {
   return match ? parseInt(match[1]) : null;
 }
 
-export default function NovoProcesso() {
+export default function FinalizacaoCentral() {
+  const { id: controleId } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
-  const { addProcesso } = useProcessos();
+  const { addProcesso, updateProcesso, getProcesso } = useProcessos();
   const [step, setStep] = useState(1);
   const [direction, setDirection] = useState(0);
   const [showAssinaturaDialog, setShowAssinaturaDialog] = useState(false);
   const [assinatura, setAssinatura] = useState('');
+  const [loadingControle, setLoadingControle] = useState(!!controleId);
+  const [existingProcessoId, setExistingProcessoId] = useState<string | null>(null);
 
   const goToStep = useCallback((target: number) => {
     setDirection(target > step ? 1 : -1);
@@ -174,6 +178,40 @@ export default function NovoProcesso() {
   const allOperadores = [...MEMBROS_CELULA, ...customOperadores];
   const allCausas = [...CAUSAS_EVENTO, ...customCausas];
   const allSeguradoras = [...SEGURADORAS, ...customSeguradoras];
+
+  // Pre-fill from processos_controle when arriving via /finalizar/:id
+  const prefillDone = useRef(false);
+  useEffect(() => {
+    if (!controleId || prefillDone.current) return;
+    prefillDone.current = true;
+
+    (async () => {
+      const { data, error } = await supabase
+        .from('processos_controle')
+        .select('*')
+        .eq('id', controleId)
+        .maybeSingle();
+
+      if (error || !data) {
+        toast.error('Processo nao encontrado no controle');
+        setLoadingControle(false);
+        return;
+      }
+
+      setNumero(data.numero || '');
+      setSegurado(data.segurado || '');
+      setSeguradora(data.seguradora || '');
+
+      // Check if a full processo already exists with this number
+      const existing = getProcesso(controleId);
+      if (existing) {
+        setExistingProcessoId(existing.id);
+      }
+
+      setLoadingControle(false);
+      toast.info('Dados do processo preenchidos automaticamente');
+    })();
+  }, [controleId, getProcesso]);
 
   // ---- Aba 2: Vistoria / Atendimento ----
   // Atendimento fields
@@ -454,8 +492,8 @@ export default function NovoProcesso() {
       return;
     }
 
-    const processo = await addProcesso({
-      numero, operador, segurado, seguradora, dataAbertura, status: 'Em andamento',
+    const processoData = {
+      numero, operador, segurado, seguradora, dataAbertura, status: 'Conclu\u00EDdo' as const,
       dataEncerramentoVistoriador: dataEncVistoria,
       dataEncerramentoFinalizarCentral: dataEncFinalizar,
       justificativaAtraso: temAtraso ? justificativaAtraso : '',
@@ -520,19 +558,43 @@ export default function NovoProcesso() {
       observacaoAtendimento: obsAtend,
       documentosPendentes: docsPendentes,
       vistoriaFinal,
-    });
+    };
+
+    let processo;
+    if (existingProcessoId) {
+      await updateProcesso(existingProcessoId, processoData);
+      processo = { ...processoData, id: existingProcessoId, historico: [] };
+    } else {
+      processo = await addProcesso(processoData);
+    }
+
+    // Mark fin_central = 'ok' on the processos_controle row
+    if (controleId) {
+      await supabase
+        .from('processos_controle')
+        .update({ fin_central: 'ok', updated_at: new Date().toISOString() })
+        .eq('id', controleId);
+    }
 
     await generateProcessoReport(processo, assinatura);
     try { localStorage.removeItem(DRAFT_KEY); } catch {}
-    toast.success('Processo criado e relatório gerado com sucesso!');
+    toast.success('Finalizacao concluida e relatorio gerado com sucesso!');
     setShowAssinaturaDialog(false);
-    navigate('/processos');
+    navigate('/controle');
   };
 
   const canAdvance = () => {
     if (step === 1) return !!numero && !!operador;
     return true;
   };
+
+  if (loadingControle) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -553,8 +615,8 @@ export default function NovoProcesso() {
       </div>
 
       <div className="mb-6 mt-2">
-        <h1 className="text-2xl font-bold text-foreground">Novo Processo</h1>
-        <p className="text-sm text-muted-foreground mt-1">Preencha as informacoes em etapas -- selecione as opcoes, sem necessidade de digitar</p>
+        <h1 className="text-2xl font-bold text-foreground">Finalizacao Central</h1>
+        <p className="text-sm text-muted-foreground mt-1">Preencha as informacoes em etapas para finalizar o processo{numero ? ` ${numero}` : ''}</p>
       </div>
 
       {/* Stepper */}
@@ -1061,7 +1123,7 @@ export default function NovoProcesso() {
               </Button>
             ) : (
               <Button onClick={handleSubmit} className="gap-1.5 bg-emerald-600 hover:bg-emerald-700">
-                <Check className="w-4 h-4" /> Criar Processo
+                <Check className="w-4 h-4" /> Finalizar Processo
               </Button>
             )}
           </div>
