@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocation } from 'wouter';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
@@ -259,6 +260,18 @@ function StatusSelector({
   onChange: (v: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+
+  useLayoutEffect(() => {
+    if (open && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setPos({
+        top: rect.bottom + 4,
+        left: rect.left,
+      });
+    }
+  }, [open]);
 
   const currentLabel = value || '\u2014';
   const hasValue = options.some(
@@ -266,8 +279,9 @@ function StatusSelector({
   );
 
   return (
-    <div className="relative">
+    <>
       <button
+        ref={triggerRef}
         onClick={() => setOpen(!open)}
         className={cn(
           'text-[11px] font-semibold px-2.5 py-1 rounded-md border cursor-pointer transition-all select-none whitespace-nowrap',
@@ -278,48 +292,53 @@ function StatusSelector({
       >
         {currentLabel}
       </button>
-      {open && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute top-full left-0 mt-1 z-50 bg-popover border border-border rounded-lg shadow-lg py-1 min-w-[100px]">
-            {options.map((opt) => (
-              <button
-                key={opt}
-                onClick={() => {
-                  onChange(opt);
-                  setOpen(false);
-                }}
-                className={cn(
-                  'w-full text-left px-3 py-1.5 text-xs font-medium hover:bg-muted transition-colors flex items-center gap-2',
-                  value.toLowerCase() === opt.toLowerCase() && 'bg-muted'
-                )}
-              >
-                <span
+      {open &&
+        createPortal(
+          <>
+            <div className="fixed inset-0 z-[9998]" onClick={() => setOpen(false)} />
+            <div
+              className="fixed z-[9999] bg-popover border border-border rounded-lg shadow-xl py-1 min-w-[110px]"
+              style={{ top: pos.top, left: pos.left }}
+            >
+              {options.map((opt) => (
+                <button
+                  key={opt}
+                  onClick={() => {
+                    onChange(opt);
+                    setOpen(false);
+                  }}
                   className={cn(
-                    'w-2 h-2 rounded-full flex-shrink-0',
-                    opt === 'Enviado' && 'bg-emerald-500',
-                    opt === 'Pendente' && 'bg-red-500',
-                    opt === 'N/A' && 'bg-purple-500'
+                    'w-full text-left px-3 py-1.5 text-xs font-medium hover:bg-muted transition-colors flex items-center gap-2',
+                    value.toLowerCase() === opt.toLowerCase() && 'bg-muted'
                   )}
-                />
-                {opt}
-              </button>
-            ))}
-            {value && (
-              <button
-                onClick={() => {
-                  onChange('');
-                  setOpen(false);
-                }}
-                className="w-full text-left px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted transition-colors border-t border-border mt-1 pt-1.5"
-              >
-                Limpar
-              </button>
-            )}
-          </div>
-        </>
-      )}
-    </div>
+                >
+                  <span
+                    className={cn(
+                      'w-2 h-2 rounded-full flex-shrink-0',
+                      opt === 'Enviado' && 'bg-emerald-500',
+                      opt === 'Pendente' && 'bg-red-500',
+                      opt === 'N/A' && 'bg-purple-500'
+                    )}
+                  />
+                  {opt}
+                </button>
+              ))}
+              {value && (
+                <button
+                  onClick={() => {
+                    onChange('');
+                    setOpen(false);
+                  }}
+                  className="w-full text-left px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted transition-colors border-t border-border mt-1 pt-1.5"
+                >
+                  Limpar
+                </button>
+              )}
+            </div>
+          </>,
+          document.body
+        )}
+    </>
   );
 }
 
