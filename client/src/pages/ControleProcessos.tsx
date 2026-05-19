@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom';
 import { useLocation } from 'wouter';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
-import { nanoid } from 'nanoid';
 import * as pdfjsLib from 'pdfjs-dist';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Card, CardContent } from '@/components/ui/card';
@@ -425,13 +424,14 @@ export default function ControleProcessos() {
       setProcessos((prev) =>
         prev.map((p) => (p.id === id ? { ...p, [field]: value } : p))
       );
-      await supabase
+      const { error } = await supabase
         .from('processos_controle')
         .update({
           [fieldToSnake(field)]: value,
           updated_at: new Date().toISOString(),
         })
         .eq('id', id);
+      if (error) toast.error('Erro ao atualizar: ' + error.message);
     },
     []
   );
@@ -463,7 +463,7 @@ export default function ControleProcessos() {
     }
 
     const newItem: ProcessoControle = {
-      id: nanoid(),
+      id: crypto.randomUUID(),
       numero: formNumero,
       segurado: formSegurado,
       seguradora: formSeguradora,
@@ -482,7 +482,11 @@ export default function ControleProcessos() {
       origemPdf: false,
     };
 
-    await supabase.from('processos_controle').insert(controleToRow(newItem));
+    const { error } = await supabase.from('processos_controle').insert(controleToRow(newItem));
+    if (error) {
+      toast.error('Erro ao salvar processo: ' + error.message);
+      return;
+    }
     setProcessos((prev) => [newItem, ...prev]);
 
     setFormNumero('');
@@ -498,8 +502,12 @@ export default function ControleProcessos() {
   };
 
   const handleDelete = async (id: string) => {
+    const { error } = await supabase.from('processos_controle').delete().eq('id', id);
+    if (error) {
+      toast.error('Erro ao remover: ' + error.message);
+      return;
+    }
     setProcessos((prev) => prev.filter((p) => p.id !== id));
-    await supabase.from('processos_controle').delete().eq('id', id);
     toast.success('Processo removido');
   };
 
@@ -590,7 +598,7 @@ export default function ControleProcessos() {
         }
 
         const newItem: ProcessoControle = {
-          id: nanoid(),
+          id: crypto.randomUUID(),
           numero,
           segurado: d.segurado || '',
           seguradora: d.seguradora || '',
@@ -609,7 +617,11 @@ export default function ControleProcessos() {
           origemPdf: true,
         };
 
-        await supabase.from('processos_controle').insert(controleToRow(newItem));
+        const { error: insertErr } = await supabase.from('processos_controle').insert(controleToRow(newItem));
+        if (insertErr) {
+          toast.error(`Erro ao salvar "${numero || file.name}": ${insertErr.message}`);
+          continue;
+        }
         newProcessos.push(newItem);
         processosAtualizados = [newItem, ...processosAtualizados];
         imported.push(numero || file.name);
